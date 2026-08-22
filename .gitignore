@@ -1,0 +1,15 @@
+build/
+backups/
+.venv/
+.west/
+.zephyr-sdk/
+.ccache/
+.arduino/
+__pycache__/
+*.pyc
+zephyr/
+bootloader/
+modules/
+tools/
+doc/
+.DS_Store
