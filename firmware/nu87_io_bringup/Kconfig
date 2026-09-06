@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "microWallaby NU-87 I/O bring-up"
+
+source "Kconfig.zephyr"
+
+menu "microWallaby bring-up options"
+
+choice MW_FIXTURE
+	prompt "Connected hardware fixture"
+	default MW_FIXTURE_COMBINED
+
+config MW_FIXTURE_COMBINED
+	bool "Touch D0 and joystick"
+	help
+	  Touch D0 is connected to PA15. Joystick VRX, VRY and SW are
+	  connected to PB1/ADC4, PB2/ADC5 and PB22 respectively.
+
+config MW_FIXTURE_TOUCH_ANALOG
+	bool "Touch A0 characterization"
+	help
+	  Touch A0 is connected to PB1/ADC4 and D0 to PA15. Disconnect the
+	  joystick before using this fixture.
+
+endchoice
+
+config MW_DEBOUNCE_SAMPLES
+	int "Consecutive samples required for a digital input change"
+	range 1 10
+	default 3
+
+config MW_ADC_RESOLUTION
+	int "ADC resolution"
+	range 12 12
+	default 12
+
+config MW_JOYSTICK_MIN
+	int "Initial joystick minimum"
+	range 0 4095
+	default 0
+
+config MW_JOYSTICK_CENTER
+	int "Initial joystick center"
+	range 1 4094
+	default 2048
+
+config MW_JOYSTICK_MAX
+	int "Initial joystick maximum"
+	range 1 4095
+	default 4095
+
+config MW_JOYSTICK_DEADZONE
+	int "Initial joystick dead-zone in ADC counts"
+	range 0 1024
+	default 205
+
+endmenu

@@ -1,0 +1,60 @@
+/*
+ * microWallaby fixture A: touch D0 + joystick
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+#include <zephyr/dt-bindings/pinctrl/amebad-pinctrl.h>
+
+/ {
+	aliases {
+		mw-touch-d0 = &mw_touch_d0;
+		mw-joystick-sw = &mw_joystick_sw;
+	};
+
+	mw_inputs {
+		compatible = "gpio-keys";
+		polling-mode;
+
+		/*
+		 * GPIO_ACTIVE_HIGH is deliberately explicit. Characterize the module's
+		 * raw D0 polarity before the acceptance run and change this flag to
+		 * GPIO_ACTIVE_LOW when the measured module requires it.
+		 */
+		mw_touch_d0: touch_d0 {
+			gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+			label = "Touch D0 / simulated E-stop sense";
+			zephyr,code = <INPUT_BTN_TOUCH>;
+		};
+
+		/* No external resistor is currently fitted: polling only. */
+		mw_joystick_sw: joystick_sw {
+			gpios = <&gpiob 22 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Joystick service switch";
+			zephyr,code = <INPUT_BTN_THUMBL>;
+		};
+	};
+
+	zephyr,user {
+		io-channels = <&adc 4>, <&adc 5>;
+		io-channel-names = "joystick-x", "joystick-y";
+	};
+};
+
+&pinctrl {
+	mw_adc_default: mw_adc_default {
+		group1 {
+			pinmux = <AMEBA_PINMUX('B', 1, AMEBA_GPIO)>,
+				 <AMEBA_PINMUX('B', 2, AMEBA_GPIO)>;
+			digital-input-disable;
+		};
+	};
+};
+
+&adc {
+	pinctrl-0 = <&mw_adc_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};
