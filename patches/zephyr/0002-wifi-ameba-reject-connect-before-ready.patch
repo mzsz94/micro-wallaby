@@ -1,21 +1,3 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: zinee-u <suzinee.u@gmail.com>
-Date: Sun, 6 Sep 2026 12:00:00 +0900
-Subject: [PATCH] drivers: wifi: ameba: reject connect before station start
-
-The vendor Wi-Fi initialization runs asynchronously. A management connect
-request can therefore reach wifi_connect_zephyr() before the station adapter
-has been created, which causes a fault in the vendor join path.
-
-Use the vendor readiness query and return -EAGAIN while initialization is
-incomplete. This leaves reconnects available after a normal disassociation,
-which does not stop the station.
-
-Signed-off-by: zinee-u <suzinee.u@gmail.com>
----
- drivers/wifi/ameba/ameba_wifi_drv.c | 5 +++++
- 1 file changed, 5 insertions(+)
-
 diff --git a/drivers/wifi/ameba/ameba_wifi_drv.c b/drivers/wifi/ameba/ameba_wifi_drv.c
 --- a/drivers/wifi/ameba/ameba_wifi_drv.c
 +++ b/drivers/wifi/ameba/ameba_wifi_drv.c
@@ -31,5 +13,3 @@ diff --git a/drivers/wifi/ameba/ameba_wifi_drv.c b/drivers/wifi/ameba/ameba_wifi
  	net_eth_carrier_on(ameba_wifi_iface[STA_WLAN_INDEX]);
  
  	if (data->state == RTK_STA_CONNECTING) {
--- 
-2.51.0

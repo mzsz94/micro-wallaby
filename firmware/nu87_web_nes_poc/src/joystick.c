@@ -37,6 +37,13 @@ static const struct gpio_dt_spec joystick_sw = GPIO_DT_SPEC_GET(SWITCH_NODE, gpi
 static const struct adc_dt_spec joystick_x = ADC_DT_SPEC_GET_BY_NAME(USER_NODE, joystick_x);
 static const struct adc_dt_spec joystick_y = ADC_DT_SPEC_GET_BY_NAME(USER_NODE, joystick_y);
 
+BUILD_ASSERT(DT_SAME_NODE(DT_IO_CHANNELS_CTLR_BY_NAME(USER_NODE, joystick_x),
+			  DT_IO_CHANNELS_CTLR_BY_NAME(USER_NODE, joystick_y)),
+	     "joystick axes must use the same ADC controller");
+BUILD_ASSERT(DT_IO_CHANNELS_INPUT_BY_NAME(USER_NODE, joystick_x) <
+		     DT_IO_CHANNELS_INPUT_BY_NAME(USER_NODE, joystick_y),
+	     "ADC sequence returns joystick X before Y");
+
 static struct mw_debounce switch_filter;
 static struct mw_joystick_sample latest_sample;
 static bool latest_ready;
@@ -69,16 +76,17 @@ static int configure_adc_channel(const struct adc_dt_spec *spec)
 	return adc_channel_setup(spec->dev, &channel);
 }
 
-static int read_adc_channel(const struct adc_dt_spec *spec, uint16_t *value)
+static int read_adc_axes(uint16_t values[2])
 {
 	struct adc_sequence sequence = {
-		.channels = BIT(spec->channel_id),
-		.buffer = value,
-		.buffer_size = sizeof(*value),
+		.channels = BIT(joystick_x.channel_id) |
+			    BIT(joystick_y.channel_id),
+		.buffer = values,
+		.buffer_size = 2U * sizeof(values[0]),
 		.resolution = CONFIG_MW_ADC_RESOLUTION,
 	};
 
-	return adc_read(spec->dev, &sequence);
+	return adc_read(joystick_x.dev, &sequence);
 }
 
 static void publish_sample(const struct mw_joystick_sample *sample)
@@ -91,6 +99,7 @@ static void publish_sample(const struct mw_joystick_sample *sample)
 
 static int sample_once(struct mw_joystick_sample *sample)
 {
+	uint16_t raw_axes[2];
 	bool switch_changed;
 	int switch_raw;
 	int ret;
@@ -108,15 +117,15 @@ static int sample_once(struct mw_joystick_sample *sample)
 		&switch_filter, raw_level_is_active(&joystick_sw, switch_raw),
 		CONFIG_MW_DEBOUNCE_SAMPLES, &switch_changed);
 
-	/* The Ameba ADC driver accepts one channel per adc_read(). */
-	ret = read_adc_channel(&joystick_x, &sample->raw_x);
+	/* Read both axes in one conversion list; the driver validates channel IDs
+	 * and returns samples in ascending channel order.
+	 */
+	ret = read_adc_axes(raw_axes);
 	if (ret < 0) {
 		return ret;
 	}
-	ret = read_adc_channel(&joystick_y, &sample->raw_y);
-	if (ret < 0) {
-		return ret;
-	}
+	sample->raw_x = raw_axes[0];
+	sample->raw_y = raw_axes[1];
 
 	sample->x_permille = mw_axis_normalize(
 		sample->raw_x, CONFIG_MW_JOYSTICK_MIN, CONFIG_MW_JOYSTICK_CENTER,

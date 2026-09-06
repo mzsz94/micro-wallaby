@@ -1,25 +1,3 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: zinee-u <suzinee.u@gmail.com>
-Date: Sun, 6 Sep 2026 00:00:01 +0900
-Subject: [PATCH] ameba: complete AmebaD Zephyr Wi-Fi linkage
-
-The AmebaD Wi-Fi archives use Zephyr-facing IPC, logging, random and ROM
-symbols that are not currently supplied by the AmebaD HAL build. This leaves
-an otherwise valid CONFIG_WIFI_AMEBA image with unresolved references.
-
-Link the existing IPC implementation and provide the small Zephyr ABI bridge,
-including the raw-to-public logical-EFUSE status translation used by the
-earlier HAL implementation. Restore the AmebaD ROM random wrappers used before
-their source was removed; these satisfy the vendor ABI but are not a verified
-cryptographic entropy source.
-
-Signed-off-by: zinee-u <suzinee.u@gmail.com>
----
- ameba/amebad/CMakeLists.txt                    |  6 +++++-
- .../source/misc/ameba_zephyr_wifi_compat.c    | 91 +++++++++++++++++++
- 2 files changed, 96 insertions(+), 1 deletion(-)
- create mode 100644 ameba/amebad/source/misc/ameba_zephyr_wifi_compat.c
-
 diff --git a/ameba/amebad/CMakeLists.txt b/ameba/amebad/CMakeLists.txt
 --- a/ameba/amebad/CMakeLists.txt
 +++ b/ameba/amebad/CMakeLists.txt
@@ -149,5 +127,3 @@ new file mode 100644
 +	return _EFUSE_LogicalMap_Write(address, count, data) == 1 ?
 +		AMEBA_SUCCESS : AMEBA_FAILURE;
 +}
--- 
-2.51.0

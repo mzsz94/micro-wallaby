@@ -12,6 +12,9 @@ GitHub issue #35를 위한 독립 Zephyr 애플리케이션이다. NU-87은 조�
 
 - ADC/GPIO는 100 Hz 절대 주기로 읽고, 별도 스레드가 50 Hz로 WebSocket을
   보낸다. 느린 네트워크가 입력 샘플링 주기를 막지 않게 하기 위한 분리다.
+- VRx의 ADC4와 VRy의 ADC5는 하나의 다채널 ADC sequence로 읽는다. 반환된
+  channel ID를 검증해 축과 표본의 대응을 보장하고 동일한 sampling cycle의
+  두 축을 함께 얻기 위한 구성이다.
 - Ameba의 connect/disconnect 호출은 동기식이므로 전용 preemptible workqueue에서
   직렬화한다. system workqueue의 독립 timeout과 generation/phase 상태, disconnect
   결과 barrier로 늦게 도착한 이전 연결 이벤트가 새 시도를 완료 처리하지 못하게
@@ -19,6 +22,11 @@ GitHub issue #35를 위한 독립 Zephyr 애플리케이션이다. NU-87은 조�
   즉시 disconnect하는 한계가 있다.
 - HTML과 JavaScript는 gzip 압축된 `static const` 데이터로 XIP flash에
   둔다. 에뮬레이터의 큰 작업 메모리는 브라우저가 부담한다.
+- `CONFIG_NET_BUF_TX_COUNT=32`를 사용한다. 128-byte TX buffer 20개로는 최소
+  1280-byte TCP window의 재전송 queue와 실제 송신 복사본, IP/TCP header가
+  함께 필요할 때 pool을 초과한다. 32개에서는 단독 정적 자산 전송 정지가
+  해소됐지만 정적 자산과 WebSocket의 동시 cold-load 안정성은 추가 검증이
+  필요하다.
 - ROM은 브라우저 파일 선택기로만 열고 iNES 형식과 1 MiB 상한을 확인한다.
   보드로 업로드하거나 저장하거나 외부 서버에서 받지 않는다.
 - 기존 `nu87_io_bringup`은 터치를 안전 입력으로 요구한다. 조이스틱 전용
@@ -104,8 +112,16 @@ patch 적용 스크립트는 pinned `hal_realtek`과 Zephyr에 다음 최소 호
 - 누락된 AmebaD Wi-Fi PMU/IPC/log/random/EFUSE ABI 공급
 - single-core Wi-Fi archive가 호출하는 Zephyr RX 심볼 export
 - 비동기 station 초기화 완료 전에 들어온 연결 요청을 `-EAGAIN`으로 거절
+- AmebaD가 실제 선택하는 200 MHz에 맞춰 잘못 선언된 260 MHz system clock 수정
+- Ameba ADC의 다채널 conversion list, FIFO channel ID 검증과 요청 channel 순서
+  출력을 지원해 ADC4/ADC5를 한 sequence로 안전하게 읽음
 - 순환 참조가 있는 Wi-Fi archive 전체를 linker group으로 묶음
 - no-blob 빌드에서는 binary 전용 glue 제외
+
+System clock 수정과 ADC 다채널 지원은 각각 Zephyr upstream
+[PR #118413](https://github.com/zephyrproject-rtos/zephyr/pull/118413)과
+[PR #118414](https://github.com/zephyrproject-rtos/zephyr/pull/118414)로 제안했다.
+병합 전까지 pinned revision의 재현 가능한 빌드를 위해 로컬 patch를 유지한다.
 
 NU-87이 `Efuse empty` 경고에서 사용자 입력을 기다리는 동안에도 연결 요청은
 vendor join 함수로 전달되지 않는다. UART에서 Enter를 눌러 초기화를 계속하면
@@ -205,10 +221,12 @@ target-specific 구현이며, Zephyr revision을 바꿀 때 다시 검토해야 
 현재 결론은 **조건부 가능성이 있으나 아직 검증되지 않았고 M0에서는 진행하지
 않음**이다.
 
-- pinned DTS의 Cortex-M33 260 MHz와 현재 linker RAM 여유는 compact NROM
+- 실제 Cortex-M33 200 MHz와 현재 linker RAM 여유는 compact NROM
   core를 검토할 출발점은 된다.
-- 그러나 Wi-Fi 연결 뒤 heap 최저값과 emulator CPU/frame time을 아직 실기로
-  측정하지 않았다. 현재 system heap 설정도 64 KiB다.
+- Wi-Fi 연결 뒤 system heap의 현재/최저 여유는 smoke test에서
+  32,336 / 30,120 B로 측정됐다. 이는 단일 실기 관찰값이며 emulator
+  CPU/frame time과 추가 RAM 비용은 아직 측정하지 않았다. 현재 system heap
+  설정은 64 KiB다.
 - 256×240 화면을 60 fps로 그대로 보내면 8 bpp도 약 3.7 MB/s, RGB565는 약
   7.4 MB/s이므로 raw streaming은 부적합하다.
 

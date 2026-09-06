@@ -1,26 +1,3 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: zinee-u <suzinee.u@gmail.com>
-Date: Sun, 6 Sep 2026 00:00:00 +0900
-Subject: [PATCH] ameba: add Zephyr Wi-Fi PMU compatibility shim
-
-The AmebaD CMake file references ameba_freertos_pmu.c, which is not part of
-hal_realtek. It also builds common Wi-Fi glue during BUILD_ONLY_NO_BLOBS even
-though the matching interrupt implementation is supplied by an omitted binary
-library.
-
-Provide the small PMU surface used by the current AmebaD Wi-Fi libraries. Keep
-the system awake until a real Zephyr PM integration is available; this is safer
-than invoking FreeRTOS tickless-idle code in Zephyr. Compile the replacement
-shim in no-blob checks, while omitting glue that requires the binary archive.
-
-Signed-off-by: zinee-u <suzinee.u@gmail.com>
----
- ameba/amebad/CMakeLists.txt                    |  6 ++++--
- .../source/misc/ameba_zephyr_wifi_pmu.c        | 90 ++++++++++++++++++
- ameba/common/wifi/CMakeLists.txt               |  6 ++++--
- 3 files changed, 98 insertions(+), 4 deletions(-)
- create mode 100644 ameba/amebad/source/misc/ameba_zephyr_wifi_pmu.c
-
 diff --git a/ameba/amebad/CMakeLists.txt b/ameba/amebad/CMakeLists.txt
 --- a/ameba/amebad/CMakeLists.txt
 +++ b/ameba/amebad/CMakeLists.txt
@@ -145,5 +122,3 @@ diff --git a/ameba/common/wifi/CMakeLists.txt b/ameba/common/wifi/CMakeLists.txt
 +  zephyr_library_sources(source/wifi_feature_dis_antdiv.c)
 +  zephyr_library_sources(source/wifi_init_zephyr.c)
 +endif()
--- 
-2.51.0
