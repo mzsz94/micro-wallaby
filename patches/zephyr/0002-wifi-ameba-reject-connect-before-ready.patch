@@ -1,0 +1,15 @@
+diff --git a/drivers/wifi/ameba/ameba_wifi_drv.c b/drivers/wifi/ameba/ameba_wifi_drv.c
+--- a/drivers/wifi/ameba/ameba_wifi_drv.c
++++ b/drivers/wifi/ameba/ameba_wifi_drv.c
+@@ -378,6 +378,11 @@ static int ameba_wifi_connect(const struct device *dev, struct net_if *iface,
+ 	uint8_t channel, psk_len;
+ 	uint8_t *psk;
+ 
++	if (!wifi_is_running(STA_WLAN_INDEX)) {
++		LOG_WRN("Wi-Fi station initialization is not complete");
++		return -EAGAIN;
++	}
++
+ 	net_eth_carrier_on(ameba_wifi_iface[STA_WLAN_INDEX]);
+ 
+ 	if (data->state == RTK_STA_CONNECTING) {

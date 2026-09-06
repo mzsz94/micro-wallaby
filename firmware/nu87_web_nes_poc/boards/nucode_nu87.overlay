@@ -1,0 +1,64 @@
+/*
+ * microWallaby joystick-only Wi-Fi fixture
+ *
+ * Joystick module wiring:
+ *   module GND -> NU-87 GND
+ *   module 5V  -> NU-87 3V3 (the label is a supply pin, do not apply 5 V)
+ *   module VRx -> PB1 / ADC4
+ *   module VRy -> PB2 / ADC5
+ *   module SW  -> PB22
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+#include <zephyr/dt-bindings/pinctrl/amebad-pinctrl.h>
+
+/ {
+	aliases {
+		mw-joystick-sw = &mw_joystick_sw;
+	};
+
+	mw_inputs {
+		compatible = "gpio-keys";
+		polling-mode;
+
+		/* Internal pull-up means no external 10 kohm resistor is required. */
+		mw_joystick_sw: joystick_sw {
+			gpios = <&gpiob 22 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Joystick switch";
+			zephyr,code = <INPUT_BTN_THUMBL>;
+		};
+	};
+
+	zephyr,user {
+		io-channels = <&adc 4>, <&adc 5>;
+		io-channel-names = "joystick-x", "joystick-y";
+	};
+};
+
+&pinctrl {
+	mw_web_adc_default: mw_web_adc_default {
+		group1 {
+			pinmux = <AMEBA_PINMUX('B', 1, AMEBA_GPIO)>,
+				 <AMEBA_PINMUX('B', 2, AMEBA_GPIO)>;
+			digital-input-disable;
+		};
+	};
+};
+
+&adc {
+	pinctrl-0 = <&mw_web_adc_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+/* The Ameba driver declares station/AP interfaces as two DT instances. */
+&wifi0 {
+	status = "okay";
+};
+
+&wifi1 {
+	status = "okay";
+};

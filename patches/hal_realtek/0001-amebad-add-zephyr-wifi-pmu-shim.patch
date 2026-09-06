@@ -1,0 +1,124 @@
+diff --git a/ameba/amebad/CMakeLists.txt b/ameba/amebad/CMakeLists.txt
+--- a/ameba/amebad/CMakeLists.txt
++++ b/ameba/amebad/CMakeLists.txt
+@@ -56,7 +56,9 @@ if(CONFIG_UART_AMEBA_LOGUART OR CONFIG_UART_AMEBA)
+ endif()
+ zephyr_library_sources_ifdef(CONFIG_WDT_AMEBA source/fwlib/ram_common/ameba_wdg.c)
+-zephyr_library_sources_ifdef(CONFIG_WIFI_AMEBA source/misc/ameba_freertos_pmu.c)
+-zephyr_library_sources_ifdef(CONFIG_WIFI_AMEBA source/swlib/sscanf_minimal.c)
++if(CONFIG_WIFI_AMEBA)
++  zephyr_library_sources(source/misc/ameba_zephyr_wifi_pmu.c)
++  zephyr_library_sources(source/swlib/sscanf_minimal.c)
++endif()
+ 
+ zephyr_link_libraries(
+   gcc
+diff --git a/ameba/amebad/source/misc/ameba_zephyr_wifi_pmu.c b/ameba/amebad/source/misc/ameba_zephyr_wifi_pmu.c
+new file mode 100644
+--- /dev/null
++++ b/ameba/amebad/source/misc/ameba_zephyr_wifi_pmu.c
+@@ -0,0 +1,90 @@
++/*
++ * Copyright (c) 2026 zinee-u
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++#include <zephyr/kernel.h>
++#include <zephyr/spinlock.h>
++#include <zephyr/sys/atomic.h>
++#include <zephyr/sys/util.h>
++
++#include "ameba_pmu.h"
++
++/*
++ * Zephyr does not yet drive AmebaD sleep hooks. Keep the radio awake while
++ * providing the ABI required by the prebuilt Wi-Fi libraries. Callback state
++ * is retained so a future power-management integration can invoke it.
++ */
++static atomic_t wake_lock = ATOMIC_INIT(DEFAULT_WAKELOCK);
++static struct k_spinlock hook_lock;
++static PSM_DD_HOOK_INFO sleep_hooks[PMU_MAX];
++
++BUILD_ASSERT(PMU_MAX <= 32, "Ameba PMU wake-lock mask is 32 bits");
++
++uint32_t pmu_yield_os_check(void)
++{
++	return 1U;
++}
++
++uint32_t pmu_get_sleep_type(void)
++{
++	return SLEEP_PG;
++}
++
++uint32_t pmu_set_sysactive_time(uint32_t timeout)
++{
++	ARG_UNUSED(timeout);
++	return 0U;
++}
++
++void pmu_acquire_wakelock(uint32_t device_id)
++{
++	if (device_id < PMU_MAX) {
++		atomic_or(&wake_lock, (atomic_val_t)BIT(device_id));
++	}
++}
++
++void pmu_release_wakelock(uint32_t device_id)
++{
++	if (device_id < PMU_MAX) {
++		atomic_and(&wake_lock, ~(atomic_val_t)BIT(device_id));
++	}
++}
++
++uint32_t pmu_get_wakelock_status(void)
++{
++	return (uint32_t)atomic_get(&wake_lock);
++}
++
++void pmu_register_sleep_callback(uint32_t device_id,
++				 PSM_HOOK_FUN sleep_hook, void *sleep_parameter,
++				 PSM_HOOK_FUN wake_hook, void *wake_parameter)
++{
++	if (device_id >= PMU_MAX) {
++		return;
++	}
++
++	k_spinlock_key_t key = k_spin_lock(&hook_lock);
++
++	sleep_hooks[device_id] = (PSM_DD_HOOK_INFO) {
++		.nDeviceId = device_id,
++		.sleep_hook_fun = sleep_hook,
++		.sleep_param_ptr = sleep_parameter,
++		.wakeup_hook_fun = wake_hook,
++		.wakeup_param_ptr = wake_parameter,
++	};
++	k_spin_unlock(&hook_lock, key);
++}
++
++void pmu_unregister_sleep_callback(uint32_t device_id)
++{
++	if (device_id >= PMU_MAX) {
++		return;
++	}
++
++	k_spinlock_key_t key = k_spin_lock(&hook_lock);
++
++	sleep_hooks[device_id] = (PSM_DD_HOOK_INFO) {0};
++	k_spin_unlock(&hook_lock, key);
++}
+diff --git a/ameba/common/wifi/CMakeLists.txt b/ameba/common/wifi/CMakeLists.txt
+--- a/ameba/common/wifi/CMakeLists.txt
++++ b/ameba/common/wifi/CMakeLists.txt
+@@ -3,6 +3,8 @@
+ 
+ zephyr_include_directories(source)
+ zephyr_include_directories(../../usrcfg/common)
+ 
+-zephyr_library_sources_ifdef(CONFIG_WIFI source/wifi_feature_dis_antdiv.c)
+-zephyr_library_sources_ifdef(CONFIG_WIFI source/wifi_init_zephyr.c)
++if(CONFIG_WIFI AND NOT CONFIG_BUILD_ONLY_NO_BLOBS)
++  zephyr_library_sources(source/wifi_feature_dis_antdiv.c)
++  zephyr_library_sources(source/wifi_init_zephyr.c)
++endif()

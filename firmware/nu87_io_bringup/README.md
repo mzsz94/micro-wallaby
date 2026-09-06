@@ -90,7 +90,7 @@ west blobs fetch hal_realtek
 python -m pip install -r modules/hal/realtek/ameba/scripts/requirements.txt
 python -m pip install 'python-mbedtls==2.10.1'
 
-NU87_SDK=/Users/mzsz/zephyr-sdk-1.0.1
+NU87_SDK=/absolute/path/to/zephyr-sdk-1.0.1
 NU87_SDK_COMPAT="$(mktemp -d)"
 ln -s "$NU87_SDK/gnu/arm-zephyr-eabi" \
   "$NU87_SDK_COMPAT/arm-zephyr-eabi"

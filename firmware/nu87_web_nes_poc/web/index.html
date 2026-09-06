@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>microWallaby · NU-87 입력 실험실</title>
+    <style>
+      :root {
+        font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+        color: #f7f3e8;
+        background: #17140f;
+        --panel: #252119;
+        --line: #504737;
+        --green: #a8e063;
+        --orange: #ffb347;
+        --red: #ff6b6b;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 15% 0, #383020, #17140f 45%); }
+      main { width: min(1080px, 100%); margin: auto; padding: 24px; }
+      header { display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 18px; }
+      h1 { font-size: clamp(1.45rem, 4vw, 2.35rem); margin: 0; letter-spacing: -.03em; }
+      .eyebrow { color: var(--orange); text-transform: uppercase; letter-spacing: .12em; font-size: .72rem; font-weight: 800; }
+      .status-row { display: flex; flex-wrap: wrap; gap: 7px; justify-content: end; }
+      .pill { border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font-size: .78rem; background: #17140fcc; }
+      .pill[data-ok="true"] { color: var(--green); border-color: #587832; }
+      .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(290px, .75fr); gap: 18px; }
+      .panel { background: color-mix(in srgb, var(--panel), transparent 4%); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: 0 18px 50px #0005; }
+      .screen-shell { aspect-ratio: 256/240; display: grid; place-items: center; background: #080807; border: 8px solid #383127; border-radius: 12px; overflow: hidden; }
+      canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+      .empty { position: absolute; inset: 8px; display: grid; place-items: center; margin: 0; text-align: center; color: #c5bcab; padding: 20px; pointer-events: none; }
+      .empty[hidden] { display: none; }
+      .screen-wrap { position: relative; }
+      .controls { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+      button, .file-label { appearance: none; border: 1px solid #6d5f49; background: #332c22; color: inherit; border-radius: 12px; padding: 11px 14px; font: inherit; font-weight: 750; cursor: pointer; touch-action: none; user-select: none; }
+      button:active, button[data-pressed="true"] { transform: translateY(1px); background: #635232; color: #fff; }
+      .file-label { background: var(--orange); color: #231b10; border-color: transparent; }
+      input[type="file"] { position: fixed; left: -10000px; }
+      aside h2 { margin: 0 0 12px; font-size: 1rem; color: var(--orange); }
+      .metric-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-variant-numeric: tabular-nums; font-size: .88rem; }
+      .metric-grid dt { color: #bcb3a4; }
+      .metric-grid dd { margin: 0; text-align: right; }
+      .axis { height: 8px; background: #13110e; border-radius: 9px; position: relative; overflow: hidden; margin: 5px 0 13px; }
+      .axis i { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; background: var(--green); transform: translateX(-50%); }
+      .hint, .notice { color: #bcb3a4; line-height: 1.5; font-size: .8rem; }
+      .notice { border-left: 3px solid var(--orange); padding-left: 10px; }
+      .error { color: var(--red); min-height: 1.3em; }
+      label.toggle { display: flex; gap: 8px; align-items: center; font-size: .86rem; }
+      kbd { border: 1px solid #655b4b; background: #16130f; border-radius: 5px; padding: 1px 5px; }
+      @media (max-width: 760px) {
+        main { padding: 14px; }
+        header { align-items: start; flex-direction: column; }
+        .status-row { justify-content: start; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="eyebrow">NU-87 · Zephyr · local only</div>
+          <h1>microWallaby 입력 실험실</h1>
+        </div>
+        <div class="status-row" aria-live="polite">
+          <span class="pill" id="wifi-pill">보드 확인 중</span>
+          <span class="pill" id="ws-pill">조이스틱 연결 중</span>
+          <span class="pill">무음 PoC</span>
+          <span class="pill">격리 테스트망 전용</span>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="screen-wrap">
+            <div class="screen-shell">
+              <canvas id="screen" width="256" height="240" aria-label="NES emulator screen"></canvas>
+            </div>
+            <p class="empty" id="empty-message">소유한 iNES 형식의 ROM을 선택하면 이 브라우저의 메모리에서만 실행합니다. 파일은 NU-87이나 네트워크로 전송되지 않습니다.</p>
+          </div>
+          <div class="controls">
+            <label class="file-label" for="rom-file">로컬 ROM 선택</label>
+            <input id="rom-file" type="file" accept=".nes,application/octet-stream" />
+            <button type="button" data-button="1">B</button>
+            <button type="button" data-button="0">A</button>
+            <button type="button" data-button="2">Select</button>
+            <button type="button" data-button="3">Start</button>
+            <button type="button" id="pause" disabled>일시정지</button>
+          </div>
+          <p class="error" id="error" role="alert"></p>
+          <p class="hint"><kbd>방향키</kbd> 이동 · <kbd>X</kbd> A · <kbd>Z</kbd> B · <kbd>Enter</kbd> Start · <kbd>Shift</kbd> Select</p>
+        </section>
+
+        <aside class="panel">
+          <h2>실시간 입력</h2>
+          <div>VRx <span id="x-value">—</span></div>
+          <div class="axis"><i id="x-indicator"></i></div>
+          <div>VRy <span id="y-value">—</span></div>
+          <div class="axis"><i id="y-indicator"></i></div>
+          <label class="toggle"><input id="invert-y" type="checkbox" checked /> Y축 반전</label>
+
+          <h2 style="margin-top: 24px">진단</h2>
+          <dl class="metric-grid">
+            <dt>SW / A</dt><dd id="sw-value">—</dd>
+            <dt>전송 번호</dt><dd id="seq-value">—</dd>
+            <dt>미수신 송신 시도</dt><dd id="gap-value">0</dd>
+            <dt>재연결</dt><dd id="reconnect-value">0</dd>
+            <dt>펌웨어 큐</dt><dd id="queue-value">—</dd>
+            <dt>상대 전송 지연</dt><dd id="transport-value">—</dd>
+            <dt>HTTP RTT</dt><dd id="rtt-value">—</dd>
+            <dt>ADC/GPIO 표본</dt><dd id="sample-value">—</dd>
+            <dt>입력 오류</dt><dd id="input-error-value">—</dd>
+            <dt>deadline miss</dt><dd id="deadline-value">—</dd>
+            <dt>시스템 heap 여유</dt><dd id="heap-value">—</dd>
+            <dt>WS 전송 오류</dt><dd id="send-error-value">—</dd>
+            <dt>stale 입력 frame</dt><dd id="stale-value">—</dd>
+          </dl>
+
+          <p class="notice">표시 지연은 서로 다른 시계로 계산한 진단용 추정치입니다. 실제 버튼-화면 종단 지연 측정값이 아닙니다.</p>
+          <p class="notice">보안 시험용 빌드입니다. 메인 가정 Wi-Fi가 아닌 격리된 2.4 GHz 테스트 AP에서만 사용하세요.</p>
+          <p class="notice">상용 게임 ROM은 제공하지 않습니다. 본인이 적법하게 보유한 파일만 로컬에서 선택하세요.</p>
+        </aside>
+      </div>
+    </main>
+
+    <script src="/jsnes.min.js"></script>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
