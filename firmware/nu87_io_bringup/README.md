@@ -93,8 +93,22 @@ west build -b nucode_nu87 micro-wallaby/firmware/nu87_io_bringup \
   -DCONFIG_SOC_AMEBA_NP_IMAGE=y
 ```
 
-The current board port does not provide `west flash`. Put the board in ROM
-download mode and use AmebaImageTool at 1,500,000 baud:
+The current board port does not provide `west flash`. On macOS, validate the
+generated images with the repository wrapper from the `micro-wallaby` root:
+
+```sh
+python3 tools/nu87_flash/nu87_flash.py \
+  --build-dir ../build/nu87-fixture-a \
+  --port /dev/cu.usbserial-10
+```
+
+Then put the board in ROM download mode (hold `BOOT`, press and release
+`RESET`, then release `BOOT`) and repeat the command with `--write`. The first
+hardware run defaults to the conservative 115,200 baud; 921,600 and 1,500,000
+are available after that path is proven. See
+[`tools/nu87_flash/README.md`](../../tools/nu87_flash/README.md) for details.
+
+The wrapper preserves the board port's required flash map:
 
 - `images/bootloader_all.bin` at `0x000000`
 - `images/km0_km4_app.bin` at `0x014000`

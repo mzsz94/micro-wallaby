@@ -1,0 +1,35 @@
+Test type: NU-87 fixture A smoke test (not the formal acceptance run)
+Date: 2026-09-06 (Asia/Seoul)
+Host: Mac mini, arm64
+Host OS: macOS 26.3.1 (25D771280a)
+Board: NUCODE NU-87; board revision not recorded
+USB-UART: Silicon Labs CP2102N
+Serial device: /dev/cu.usbserial-10
+
+microWallaby commit: 64d879999ce60239504753576cf8b955004609ab
+microWallaby branch: feat/m0-nu87-io-validation
+Zephyr commit: e70694102ad6f910485155a824c5483daf605a9f
+hal_realtek commit: 9a4caf9846d6f0ceb6b38f971a771b1325c1e4b9
+Zephyr SDK: 1.0.1
+Python: 3.12.13
+west: 1.5.0
+Fixture: fixture A / nucode_nu87_fixture_a.overlay / fixture_a.conf
+
+bootloader_all.bin:
+  size: 28928 bytes (0x7100)
+  flash offset: 0x000000
+  SHA-256: 74d86e9c144fe5018835de4dfb308c1350057d614fda016576099ea379a60d6e
+
+km0_km4_app.bin:
+  size: 124352 bytes (0x1e5c0)
+  flash offset: 0x014000
+  flash end: 0x0325c0
+  SHA-256: 12c470b7595e8d61ec83b309060dc4d3692afde746a4dfb54c0cf97938345eae
+
+Flash host tool:
+  Realtek ameba_d_tools_macos 1.1.3 uploader through Rosetta
+  upload baud: 115200
+  archive SHA-256: fec90f971a7f22b4e6ffbe770d25da4bd52cbd92cc8d473620d8b86ac1040713
+  loader SHA-256: 9307121385cb390dfd2da64da2c6c515f17b5a9556b3d04021487c9b9f220b55
+
+Console baud: 1500000
