@@ -86,12 +86,30 @@ A programmable image also needs the Realtek NP-core blob:
 
 ```sh
 west blobs fetch hal_realtek
+
+python -m pip install -r modules/hal/realtek/ameba/scripts/requirements.txt
+python -m pip install 'python-mbedtls==2.10.1'
+
+NU87_SDK=/Users/mzsz/zephyr-sdk-1.0.1
+NU87_SDK_COMPAT="$(mktemp -d)"
+ln -s "$NU87_SDK/gnu/arm-zephyr-eabi" \
+  "$NU87_SDK_COMPAT/arm-zephyr-eabi"
+
+ZEPHYR_TOOLCHAIN_VARIANT=zephyr \
+ZEPHYR_SDK_INSTALL_DIR="$NU87_SDK_COMPAT" \
 west build -b nucode_nu87 micro-wallaby/firmware/nu87_io_bringup \
   -d build/nu87-fixture-a -p always -- \
+  -DZEPHYR_SDK_INSTALL_DIR="$NU87_SDK" \
+  -DCMAKE_GDB="$NU87_SDK/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb" \
   -DDTC_OVERLAY_FILE=boards/nucode_nu87_fixture_a.overlay \
   -DEXTRA_CONF_FILE=fixture_a.conf \
   -DCONFIG_SOC_AMEBA_NP_IMAGE=y
 ```
+
+The extra SDK path setup is a temporary compatibility workaround: the pinned
+Realtek image merger expects the pre-1.0 SDK directory layout. Its security
+module also imports `python-mbedtls` even for this non-secure image path,
+although that package is no longer declared by the HAL requirements.
 
 The current board port does not provide `west flash`. On macOS, validate the
 generated images with the repository wrapper from the `micro-wallaby` root:
