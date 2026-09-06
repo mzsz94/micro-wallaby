@@ -455,6 +455,11 @@ int mw_wifi_sta_start(void)
 			WIFI_SSID_MAX_LEN);
 		return -EINVAL;
 	}
+	if (security == WIFI_SECURITY_TYPE_NONE && psk_length != 0U) {
+		LOG_ERR("Wi-Fi password is set while OPEN security is selected; "
+			"select WPA2-PSK or clear CONFIG_MW_WIFI_PSK");
+		return -EINVAL;
+	}
 	if (security != WIFI_SECURITY_TYPE_NONE &&
 	    (psk_length < WIFI_PSK_MIN_LEN || psk_length > WIFI_PSK_MAX_LEN)) {
 		LOG_ERR("Wi-Fi password length must be %d..%d for WPA2-PSK",

@@ -29,8 +29,7 @@ int main(void)
 
 	ret = mw_wifi_sta_start();
 	if (ret < 0) {
-		LOG_ERR("Wi-Fi startup deferred: %d", ret);
-		LOG_INF("The HTTP server remains active for network-side diagnostics");
+		LOG_ERR("Wi-Fi startup failed; Wi-Fi is disabled: %d", ret);
 	}
 
 	return 0;

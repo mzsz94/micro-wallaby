@@ -66,6 +66,26 @@ cp micro-wallaby/firmware/nu87_web_nes_poc/wifi.example.conf \
 제외되지만 생성된 `.config`와 펌웨어 이미지에는 설정값이 남으므로 빌드
 산출물도 공개하지 않는다.
 
+OPEN 시험 AP라면 비밀번호를 비우고 OPEN만 선택한다.
+
+```ini
+CONFIG_MW_WIFI_PSK=""
+CONFIG_MW_WIFI_SECURITY_OPEN=y
+# CONFIG_MW_WIFI_SECURITY_PSK is not set
+```
+
+폐기 가능한 WPA2 시험 AP라면 OPEN을 끄고 아래 세 항목을 함께 선택한다.
+
+```ini
+# CONFIG_MW_WIFI_SECURITY_OPEN is not set
+CONFIG_MW_WIFI_SECURITY_PSK=y
+CONFIG_MW_WIFI_PSK="DISPOSABLE_TEST_PASSWORD"
+CONFIG_MW_ALLOW_INSECURE_TEST_PSK=y
+```
+
+비밀번호가 있는데 OPEN을 선택하면 비밀번호가 무시되는 구성 오류이므로 앱이
+시작 단계에서 거절한다.
+
 ## 테스트와 빌드
 
 west workspace 루트에서 다음 순서로 준비한다.
@@ -83,8 +103,14 @@ patch 적용 스크립트는 pinned `hal_realtek`과 Zephyr에 다음 최소 호
 
 - 누락된 AmebaD Wi-Fi PMU/IPC/log/random/EFUSE ABI 공급
 - single-core Wi-Fi archive가 호출하는 Zephyr RX 심볼 export
+- 비동기 station 초기화 완료 전에 들어온 연결 요청을 `-EAGAIN`으로 거절
 - 순환 참조가 있는 Wi-Fi archive 전체를 linker group으로 묶음
 - no-blob 빌드에서는 binary 전용 glue 제외
+
+NU-87이 `Efuse empty` 경고에서 사용자 입력을 기다리는 동안에도 연결 요청은
+vendor join 함수로 전달되지 않는다. UART에서 Enter를 눌러 초기화를 계속하면
+애플리케이션의 다음 재시도에서 연결한다. 이 경고를 없애려고 EFUSE를 쓰는 것은
+이번 PoC 범위가 아니며 수행하지 않는다.
 
 PMU shim은 실제 Zephyr 저전력 연동 대신 always-awake 동작을 유지한다. 따라서
 전력 측정이나 sleep 기능의 근거로 쓰면 안 된다. `west update`가 외부 모듈을

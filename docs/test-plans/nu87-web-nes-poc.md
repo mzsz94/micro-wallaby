@@ -52,7 +52,7 @@ ROM보다 작고 ROM 배포·저장 책임을 펌웨어에 추가할 필요가 �
 
 | 단계 | 조작 | 합격 기준 | 기록 |
 | --- | --- | --- | --- |
-| 1 | 보드를 flash하고 재부팅 | assert/reset loop 없이 시작하며 TEST ONLY 경고 출력 | UART 로그 |
+| 1 | 보드를 flash하고 재부팅. `Efuse empty` 입력 대기가 나오면 UART에서 Enter | 초기화 대기 중 연결을 강행하지 않고 재시도하며, Enter 뒤 assert/reset 없이 계속 진행 | UART 로그 |
 | 2 | Wi-Fi 연결 대기 | 30초 이내 DHCP URL 출력. 실패 시 명확한 오류와 재시도 | SSID 비공개, 소요 시간 |
 | 3 | 같은 격리 LAN에서 `/api/status` 접속 | HTTP 200, `wifi_ipv4:true`, `heap_stats_ok:true` | 원본 JSON |
 | 4 | 웹 페이지 접속 | HTML/JSNES가 외부 요청 없이 로드 | 브라우저 Network 기록 |
@@ -114,11 +114,11 @@ headroom은 SRAM capacity에서 정적 사용량을 뺀 값이며 runtime system
 | firmware commit | 본 문서와 같은 구현 commit |
 | Zephyr revision | `e70694102ad6f910485155a824c5483daf605a9f` |
 | Realtek HAL revision | `9a4caf9846d6f0ceb6b38f971a771b1325c1e4b9` |
-| Flash 사용 / slot | 509,480 / 2,015,232 B (25.28%) |
-| 정적 RAM 사용 / SRAM | 137,586 / 475,136 B (28.96%) |
-| 정적 RAM headroom | 337,550 B |
+| Flash 사용 / slot | 505,668 / 2,015,232 B (25.09%) |
+| 정적 RAM 사용 / SRAM | 134,034 / 475,136 B (28.21%) |
+| 정적 RAM headroom | 341,102 B |
 | no-blob Flash / RAM | 203,108 B / 120,640 B |
-| flash dry-run | bootloader 28,928 B @ `0x000000`; application 575,168 B @ `0x014000` |
+| flash dry-run | bootloader 28,928 B @ `0x000000`; application 571,360 B @ `0x014000` |
 | 시험 일시 / 장소 | 미실행 |
 | association / DHCP | 미실행 |
 | Wi-Fi 후 현재 / 최저 heap | 미실행 |
