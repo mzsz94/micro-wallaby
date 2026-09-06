@@ -3,7 +3,10 @@ name: host logic
 on:
   push:
     branches:
-      - "feat/m0-nu87-io-validation"
+      - "feat/**"
+      - "bugfix/**"
+      - "hotfix/**"
+      - "release/**"
   pull_request:
 
 permissions:
@@ -16,6 +19,31 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and run portable logic tests
         run: make -C firmware/nu87_io_bringup/tests/host test
+      - name: Build and run web NES firmware tests
+        run: make -C firmware/nu87_web_nes_poc/tests/host test
+
+  browser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test browser input, ROM validation and pinned JSNES
+        run: node --test firmware/nu87_web_nes_poc/web/tests/*.test.js
+      - name: Parse browser entry points
+        run: |
+          node --check firmware/nu87_web_nes_poc/web/app.js
+          node --check firmware/nu87_web_nes_poc/web/controller.js
+      - name: Reject committed ROM files
+        shell: bash
+        run: |
+          tracked_roms="$(git ls-files | awk 'tolower($0) ~ /\.(nes|rom)$/')"
+          if [[ -n "$tracked_roms" ]]; then
+            echo "ROM files must not be committed:"
+            echo "$tracked_roms"
+            exit 1
+          fi
 
   zephyr-build:
     runs-on: ubuntu-latest
@@ -45,3 +73,11 @@ jobs:
           -d build/nu87-fixture-b --
           -DDTC_OVERLAY_FILE=boards/nucode_nu87_fixture_b.overlay
           -DEXTRA_CONF_FILE=fixture_b.conf
+      - name: Apply pinned AmebaD Wi-Fi compatibility patch
+        run: micro-wallaby/tools/apply_west_patches.sh
+      - name: Build Wi-Fi web NES PoC without proprietary blobs
+        run: >-
+          west build -b nucode_nu87
+          micro-wallaby/firmware/nu87_web_nes_poc
+          -d build/nu87-web-nes-noblob --
+          -DCONFIG_BUILD_ONLY_NO_BLOBS=y

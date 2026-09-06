@@ -1,0 +1,153 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: zinee-u <suzinee.u@gmail.com>
+Date: Sun, 6 Sep 2026 00:00:01 +0900
+Subject: [PATCH] ameba: complete AmebaD Zephyr Wi-Fi linkage
+
+The AmebaD Wi-Fi archives use Zephyr-facing IPC, logging, random and ROM
+symbols that are not currently supplied by the AmebaD HAL build. This leaves
+an otherwise valid CONFIG_WIFI_AMEBA image with unresolved references.
+
+Link the existing IPC implementation and provide the small Zephyr ABI bridge,
+including the raw-to-public logical-EFUSE status translation used by the
+earlier HAL implementation. Restore the AmebaD ROM random wrappers used before
+their source was removed; these satisfy the vendor ABI but are not a verified
+cryptographic entropy source.
+
+Signed-off-by: zinee-u <suzinee.u@gmail.com>
+---
+ ameba/amebad/CMakeLists.txt                    |  6 +++++-
+ .../source/misc/ameba_zephyr_wifi_compat.c    | 91 +++++++++++++++++++
+ 2 files changed, 96 insertions(+), 1 deletion(-)
+ create mode 100644 ameba/amebad/source/misc/ameba_zephyr_wifi_compat.c
+
+diff --git a/ameba/amebad/CMakeLists.txt b/ameba/amebad/CMakeLists.txt
+--- a/ameba/amebad/CMakeLists.txt
++++ b/ameba/amebad/CMakeLists.txt
+@@ -12,11 +12,11 @@ if(CONFIG_WIFI_AMEBA AND NOT CONFIG_BUILD_ONLY_NO_BLOBS)
+     -Wl,--start-group
+     ${LIB_PATH}/lib_wifi_rtk_app.a
+     ${LIB_PATH}/lib_wifi_single_core.a
+-    -Wl,--end-group
+     ${LIB_PATH}/lib_wifi_api.a
+     ${LIB_PATH}/lib_rtw_event.a
+     ${LIB_PATH}/lib_wpa_lite.a
+     ${LIB_PATH}/lib_wifi_com_sec.a
++    -Wl,--end-group
+   )
+ endif()
+ 
+@@ -41,6 +41,7 @@ zephyr_library_sources(
+   source/fwlib/ram_common/ameba_pll.c
+   source/swlib/log.c
+   source/fwlib/ram_common/ameba_reset.c
++  source/fwlib/ram_common/ameba_ipc_api.c
+ )
+ 
+ # used by driver, need use zephyr_library_sources_ifdef
+@@ -56,5 +57,8 @@ if(CONFIG_UART_AMEBA_LOGUART OR CONFIG_UART_AMEBA)
+     zephyr_library_sources(source/fwlib/ram_common/ameba_uart.c)
+ endif()
++if(CONFIG_WIFI_AMEBA)
++  zephyr_library_sources(source/misc/ameba_zephyr_wifi_compat.c)
++endif()
+ zephyr_library_sources_ifdef(CONFIG_WDT_AMEBA source/fwlib/ram_common/ameba_wdg.c)
+ if(CONFIG_WIFI_AMEBA)
+   zephyr_library_sources(source/misc/ameba_zephyr_wifi_pmu.c)
+diff --git a/ameba/amebad/source/misc/ameba_zephyr_wifi_compat.c b/ameba/amebad/source/misc/ameba_zephyr_wifi_compat.c
+new file mode 100644
+--- /dev/null
++++ b/ameba/amebad/source/misc/ameba_zephyr_wifi_compat.c
+@@ -0,0 +1,91 @@
++/*
++ * Copyright (c) 2026 zinee-u
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++#include <stdarg.h>
++#include <stddef.h>
++#include <stdint.h>
++
++#include <zephyr/sys/cbprintf.h>
++
++#define AMEBA_ROM_CALL __attribute__((long_call))
++#define AMEBA_SUCCESS 0
++#define AMEBA_FAILURE (-1)
++
++extern int _EFUSE_LogicalMap_Read(uint8_t *buffer) AMEBA_ROM_CALL;
++extern int _EFUSE_LogicalMap_Write(uint32_t address, uint32_t count,
++				   uint8_t *data) AMEBA_ROM_CALL;
++extern void LOGUART_PutChar(uint8_t character) AMEBA_ROM_CALL;
++extern uint32_t Rand(void) AMEBA_ROM_CALL;
++extern int RandBytes_Get(void *buffer, uint32_t size) AMEBA_ROM_CALL;
++
++static int diag_character_out(int character, void *context)
++{
++	(void)context;
++	LOGUART_PutChar((uint8_t)character);
++	return character;
++}
++
++/*
++ * The AmebaD Wi-Fi archives expect the newer Realtek logging ABI, while the
++ * AmebaD ROM exports only the older DiagPrintf family. Keep vendor messages
++ * on the Ameba LogUART without importing a FreeRTOS logger.
++ */
++int DiagVprintf(const char *format, va_list args)
++{
++	return cbvprintf(diag_character_out, NULL, format, args);
++}
++
++int DiagVprintfNano(const char *format, va_list args)
++{
++	return cbvprintf(diag_character_out, NULL, format, args);
++}
++
++uint32_t DiagPrintfNano(const char *format, ...)
++{
++	va_list args;
++	int written;
++
++	va_start(args, format);
++	written = cbvprintf(diag_character_out, NULL, format, args);
++	va_end(args);
++
++	return written < 0 ? 0U : (uint32_t)written;
++}
++
++/* Restore the wrappers used by the earlier AmebaD HAL. The ROM implementation
++ * is timer-seeded and is not a verified CSPRNG. It only satisfies the binary
++ * Wi-Fi ABI; production security requires a real hardware entropy source.
++ */
++uint32_t _rand(void)
++{
++	return Rand();
++}
++
++int TRNG_get_random_bytes(void *destination, uint32_t size)
++{
++	return RandBytes_Get(destination, size);
++}
++
++int TRNG_get_random_bytes_f_rng(void *context, unsigned char *output,
++				 size_t output_size)
++{
++	(void)context;
++	return TRNG_get_random_bytes(output, output_size);
++}
++
++/* The ROM returns one for success and zero for failure; the Wi-Fi archive
++ * expects the public Ameba convention of zero and minus one instead.
++ */
++int EFUSE_LogicalMap_Read(uint8_t *buffer)
++{
++	return _EFUSE_LogicalMap_Read(buffer) == 1 ? AMEBA_SUCCESS : AMEBA_FAILURE;
++}
++
++int EFUSE_LogicalMap_Write(uint32_t address, uint32_t count, uint8_t *data)
++{
++	return _EFUSE_LogicalMap_Write(address, count, data) == 1 ?
++		AMEBA_SUCCESS : AMEBA_FAILURE;
++}
+-- 
+2.51.0

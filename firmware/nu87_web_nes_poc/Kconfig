@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "microWallaby NU-87 Wi-Fi web NES PoC"
+
+source "Kconfig.zephyr"
+
+menu "microWallaby web NES PoC options"
+
+config MW_WIFI_SSID
+	string "Wi-Fi SSID"
+	default ""
+	help
+	  Local-only build value. Keep credentials in the ignored wifi.conf file.
+
+config MW_WIFI_PSK
+	string "Wi-Fi password"
+	default ""
+	help
+	  Local-only build value. Keep credentials in the ignored wifi.conf file.
+
+choice MW_WIFI_SECURITY
+	prompt "Wi-Fi security"
+	default MW_WIFI_SECURITY_OPEN
+
+config MW_WIFI_SECURITY_OPEN
+	bool "Open (isolated test network only)"
+
+config MW_WIFI_SECURITY_PSK
+	bool "WPA2-PSK (explicit test-only opt-in)"
+
+endchoice
+
+config MW_ALLOW_INSECURE_TEST_PSK
+	bool "Acknowledge AmebaD test-only random source for WPA2-PSK"
+	depends on MW_WIFI_SECURITY_PSK
+	default n
+	help
+	  The pinned AmebaD Zephyr port has no verified hardware entropy source.
+	  Enable this only for a disposable WPA2 credential on a network isolated
+	  from the home LAN and Internet. Never use a normal home Wi-Fi password.
+
+config MW_WIFI_CONNECT_DELAY_MS
+	int "Initial Wi-Fi connection delay (ms)"
+	range 0 60000
+	default 500
+
+config MW_WIFI_CONNECT_RETRY_SECONDS
+	int "Wi-Fi retry interval (seconds)"
+	range 1 300
+	default 10
+
+config MW_WIFI_CONNECT_TIMEOUT_SECONDS
+	int "Wi-Fi/DHCP connection timeout (seconds)"
+	range 5 300
+	default 30
+	help
+	  Retry if the Ameba driver does not report a successful connection and
+	  DHCP lease before this interval expires.
+
+config MW_WIFI_WORK_STACK_SIZE
+	int "Dedicated Wi-Fi control workqueue stack size"
+	range 2048 8192
+	default 3072
+	help
+	  Stack used by the private queue that serializes the Ameba connect and
+	  disconnect calls. Keeping these synchronous calls off Zephyr's system
+	  workqueue prevents them from blocking unrelated system work.
+
+config MW_WIFI_WORK_PRIORITY
+	int "Dedicated Wi-Fi control workqueue priority"
+	range 0 14
+	default 7
+	help
+	  Preemptible Zephyr thread priority for Wi-Fi control work. Lower numeric
+	  values have higher scheduling priority.
+
+config MW_INPUT_STALE_TIMEOUT_MS
+	int "Maximum joystick sample age before fail-safe release (ms)"
+	range 20 1000
+	default 100
+	help
+	  WebSocket frames older than this are marked invalid and forced to neutral.
+	  This is independent from the browser's 250 ms transport stale timeout.
+
+config MW_DEBOUNCE_SAMPLES
+	int "Consecutive samples required for switch change"
+	range 1 10
+	default 3
+
+config MW_ADC_RESOLUTION
+	int "ADC resolution"
+	range 12 12
+	default 12
+
+config MW_JOYSTICK_MIN
+	int "Initial joystick minimum"
+	range 0 4095
+	default 0
+
+config MW_JOYSTICK_CENTER
+	int "Initial joystick center"
+	range 1 4094
+	default 2048
+
+config MW_JOYSTICK_MAX
+	int "Initial joystick maximum"
+	range 1 4095
+	default 4095
+
+config MW_JOYSTICK_DEADZONE
+	int "Initial joystick dead-zone in ADC counts"
+	range 0 1024
+	default 205
+
+config MW_JOYSTICK_SAMPLE_PERIOD_MS
+	int "Joystick sample period (ms)"
+	range 5 100
+	default 10
+
+config MW_JOYSTICK_STACK_SIZE
+	int "Joystick sampler stack size"
+	default 1536
+
+config MW_JOYSTICK_THREAD_PRIORITY
+	int "Joystick sampler thread priority"
+	range -16 15
+	default 3
+
+config MW_WEB_HTTP_PORT
+	int "HTTP listen port"
+	range 1 65535
+	default 8080
+
+config MW_WEB_INPUT_PERIOD_MS
+	int "WebSocket joystick event period (ms)"
+	range 10 1000
+	default 20
+
+config MW_WEB_SEND_TIMEOUT_MS
+	int "WebSocket send timeout (ms)"
+	range 0 5000
+	default 100
+
+config MW_WEB_SOCKET_STACK_SIZE
+	int "Joystick WebSocket sender stack size"
+	default 2048
+
+config MW_WEB_SOCKET_PRIORITY
+	int "Joystick WebSocket sender priority"
+	range -16 15
+	default 5
+
+config MW_WEB_LOG_LEVEL
+	int "Application log level"
+	range 0 4
+	default 3
+
+endmenu
