@@ -1,0 +1,4 @@
+/* For modules with SA0 pulled high. The node name is cosmetic. */
+&imu {
+	reg = <0x6b>;
+};

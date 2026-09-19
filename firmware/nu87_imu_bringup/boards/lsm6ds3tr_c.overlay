@@ -1,0 +1,4 @@
+/* Select only after confirming the module uses LSM6DS3TR-C (WHO_AM_I 0x6a). */
+&imu {
+	compatible = "st,lsm6ds3tr-c";
+};

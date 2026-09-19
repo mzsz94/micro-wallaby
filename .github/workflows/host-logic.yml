@@ -21,6 +21,10 @@ jobs:
         run: make -C firmware/nu87_io_bringup/tests/host test
       - name: Build and run web NES firmware tests
         run: make -C firmware/nu87_web_nes_poc/tests/host test
+      - name: Test IMU register core and stationary calibration
+        run: make -C firmware/nu87_imu_bringup/tests/host test
+      - name: Test IMU package safety guards
+        run: python3 -m unittest discover -s tools/nu87_imu -v
 
   browser-tests:
     runs-on: ubuntu-latest
@@ -80,4 +84,10 @@ jobs:
           west build -b nucode_nu87
           micro-wallaby/firmware/nu87_web_nes_poc
           -d build/nu87-web-nes-noblob --
+          -DCONFIG_BUILD_ONLY_NO_BLOBS=y
+      - name: Build IMU bring-up without proprietary blobs
+        run: >-
+          west build -b nucode_nu87
+          micro-wallaby/firmware/nu87_imu_bringup
+          -d build/nu87-imu-noblob --
           -DCONFIG_BUILD_ONLY_NO_BLOBS=y

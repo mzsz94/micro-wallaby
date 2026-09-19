@@ -1,0 +1,3 @@
+description: Application-local polling driver for the ST LSM6DS3TR-C
+compatible: "st,lsm6ds3tr-c"
+include: [sensor-device.yaml, i2c-device.yaml]

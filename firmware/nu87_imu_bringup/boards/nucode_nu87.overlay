@@ -1,0 +1,32 @@
+#include <zephyr/dt-bindings/pinctrl/amebad-pinctrl.h>
+
+/ {
+	aliases {
+		imu0 = &imu;
+	};
+};
+
+&pinctrl {
+	imu_i2c_default: imu_i2c_default {
+		group1 {
+			pinmux = <AMEBA_PINMUX('A', 25, AMEBA_I2C)>,
+				 <AMEBA_PINMUX('A', 26, AMEBA_I2C)>;
+			bias-pull-up;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	pinctrl-0 = <&imu_i2c_default>;
+	pinctrl-names = "default";
+	imu: imu@6a {
+		compatible = "st,lsm6ds3";
+		reg = <0x6a>;
+	};
+};
+
+&spic {
+	status = "okay";
+};

@@ -1,0 +1,157 @@
+diff --git a/drivers/i2c/i2c_ameba.c b/drivers/i2c/i2c_ameba.c
+index eedee64d207..f45e3b02bdf 100644
+--- a/drivers/i2c/i2c_ameba.c
++++ b/drivers/i2c/i2c_ameba.c
+@@ -44,6 +44,7 @@ struct i2c_ameba_data {
+ 	uint32_t dev_config;
+ 	struct i2c_msg *current;
+ 	volatile int flag_done;
++	struct k_mutex transfer_lock;
+ #if defined(CONFIG_I2C_AMEBA_INTERRUPT)
+ 	I2C_IntModeCtrl i2c_intctrl;
+ #endif
+@@ -365,6 +366,10 @@ static int i2c_ameba_configure(const struct device *dev, uint32_t dev_config)
+ 	I2C_Cmd(i2c, DISABLE);
+ 
+ 	I2C_StructInit(&I2C_InitStruct);
++#if defined(CONFIG_SOC_SERIES_AMEBAD) && !defined(CONFIG_I2C_AMEBA_INTERRUPT) && \
++	!defined(CONFIG_I2C_ASYNC_API)
++	I2C_InitStruct.I2CMstReSTR = ENABLE;
++#endif
+ 
+ 	if (dev_config & I2C_MODE_CONTROLLER) {
+ 		I2C_InitStruct.I2CMaster = I2C_MASTER_MODE;
+@@ -458,20 +463,111 @@ static int i2c_ameba_validate_msgs(struct i2c_msg *msgs, uint8_t num_msgs)
+ 	return 0;
+ }
+ 
++#if defined(CONFIG_SOC_SERIES_AMEBAD) && !defined(CONFIG_I2C_AMEBA_INTERRUPT) && \
++	!defined(CONFIG_I2C_ASYNC_API)
++/* Experimental polling-path fix for the pinned AmebaD staging driver.
++ * Keep register-address writes and subsequent reads in ONE I2C transaction.
++ * A whole transfer has a finite deadline, including a missing/NACKing sensor.
++ */
++static int i2c_ameba_poll_flag(I2C_TypeDef *i2c, uint32_t flag, bool raw,
++			     int64_t deadline)
++{
++	while (true) {
++		uint32_t interrupts = i2c->IC_RAW_INTR_STAT;
++
++		if (interrupts & I2C_BIT_TX_ABRT) {
++			return -EIO;
++		}
++		if ((raw ? interrupts : i2c->IC_STATUS) & flag) {
++			return 0;
++		}
++		if (k_uptime_get() >= deadline) {
++			return -ETIMEDOUT;
++		}
++		k_busy_wait(2);
++	}
++}
++
++static int i2c_ameba_poll_transfer(const struct device *dev, struct i2c_msg *msgs,
++				 uint8_t num_msgs, uint16_t addr)
++{
++	const struct i2c_ameba_config *cfg = dev->config;
++	struct i2c_ameba_data *data = dev->data;
++	I2C_TypeDef *i2c = cfg->I2Cx;
++	int rc = 0;
++	int64_t deadline;
++
++	if (data->master_mode != 1) {
++		return -ENOTSUP;
++	}
++	k_mutex_lock(&data->transfer_lock, K_FOREVER);
++	I2C_Cmd(i2c, DISABLE);
++	I2C_ClearAllINT(i2c);
++	I2C_SetSlaveAddress(i2c, addr);
++	I2C_Cmd(i2c, ENABLE);
++	deadline = k_uptime_get() + 50;
++	for (uint8_t m = 0; m < num_msgs && rc == 0; ++m) {
++		bool read = (msgs[m].flags & I2C_MSG_READ) != 0;
++
++		for (uint32_t b = 0; b < msgs[m].len; ++b) {
++			uint32_t cmd = read ? BIT_CTRL_IC_DATA_CMD_CMD : msgs[m].buf[b];
++
++			rc = i2c_ameba_poll_flag(i2c, I2C_BIT_TFNF, false, deadline);
++			if (rc != 0) {
++				break;
++			}
++			if (m > 0 && b == 0 && (msgs[m].flags & I2C_MSG_RESTART)) {
++				cmd |= BIT_CTRL_IC_DATA_CMD_RESTART;
++			}
++			if (b == msgs[m].len - 1 && (msgs[m].flags & I2C_MSG_STOP)) {
++				cmd |= BIT_CTRL_IC_DATA_CMD_STOP;
++			}
++			i2c->IC_DATA_CMD = cmd;
++			if (read) {
++				rc = i2c_ameba_poll_flag(i2c, I2C_BIT_RFNE, false, deadline);
++				if (rc != 0) {
++					break;
++				}
++				msgs[m].buf[b] = i2c->IC_DATA_CMD & 0xff;
++			}
++		}
++	}
++	if (rc == 0) {
++		rc = i2c_ameba_poll_flag(i2c, I2C_BIT_STOP_DET, true, deadline);
++	}
++	I2C_Cmd(i2c, DISABLE);
++	I2C_ClearAllINT(i2c);
++	k_mutex_unlock(&data->transfer_lock);
++	return rc;
++}
++#endif
++
+ static int i2c_ameba_transfer(const struct device *dev, struct i2c_msg *msgs,
+ 			      uint8_t num_msgs, uint16_t addr)
+ {
+-	struct i2c_ameba_data *data = dev->data;
+-	const struct i2c_ameba_config *config = dev->config;
+-	I2C_TypeDef *i2c = config->I2Cx;
+ 	int err = 0;
+ 
++	if (num_msgs == 0) {
++		return 0;
++	}
++	if (msgs == NULL) {
++		return -EINVAL;
++	}
++
+ 	/* 1. Validate and setup message flags */
+ 	err = i2c_ameba_validate_msgs(msgs, num_msgs);
+ 	if (err != 0) {
+ 		return err;
+ 	}
+ 
++#if defined(CONFIG_SOC_SERIES_AMEBAD) && !defined(CONFIG_I2C_AMEBA_INTERRUPT) && \
++	!defined(CONFIG_I2C_ASYNC_API)
++	return i2c_ameba_poll_transfer(dev, msgs, num_msgs, addr);
++#else
++	struct i2c_ameba_data *data = dev->data;
++	const struct i2c_ameba_config *config = dev->config;
++	I2C_TypeDef *i2c = config->I2Cx;
++
+ 	/* 2. Hardware Configuration */
+ 	I2C_SetSlaveAddress(i2c, addr);
+ 	/* Enable i2c device */
+@@ -551,6 +647,7 @@ static int i2c_ameba_transfer(const struct device *dev, struct i2c_msg *msgs,
+ 	}
+ #endif
+ 	return 0;
++#endif
+ }
+ 
+ static DEVICE_API(i2c, i2c_ameba_driver_api) = {
+@@ -566,6 +663,10 @@ static int i2c_ameba_init(const struct device *dev)
+ 	uint32_t bitrate_cfg;
+ 	int err = 0;
+ 
++	struct i2c_ameba_data *poll_data = dev->data;
++
++	k_mutex_init(&poll_data->transfer_lock);
++
+ 	/*clk enable*/
+ 	clock_control_on(config->clock_dev, (clock_control_subsys_t)config->clock_subsys);
+ 	/* Configure pinmux  */
