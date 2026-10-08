@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>microWallaby · Motion Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-icon">w.</span><div><h1>microWallaby <span>Motion Lab</span></h1><p>하드웨어 제작 전, 움직임부터 확인하세요.</p></div></div>
+    <div class="header-tags"><span class="tag">LOCAL SIMULATION</span><span class="tag">5 ACTUATED AXES</span></div>
+  </header>
+  <main>
+    <div class="intro"><div><span class="eyebrow">01 / DRIVE & DOCK</span><h2>작은 움직임을, 먼저 실험하기.</h2><p>2WD 주행 · 머리 2축 · 허리 1축 · 도킹 상태 전이</p></div><button id="export" class="secondary">실험 로그 저장 ↗</button></div>
+    <section class="toolbar" aria-label="실험 설정">
+      <label>시작 환경 <select id="scenario"></select></label>
+      <label>재생 속도 <select id="speed"><option value="1">1× 실제 시간</option><option value="2">2×</option><option value="4">4×</option></select></label>
+      <button id="reset" class="secondary">초기화</button><button id="pause" class="secondary">일시정지</button>
+      <span class="sim-clock">SIM <b id="time">0.00</b> s</span>
+    </section>
+    <div class="workspace">
+      <section class="panel arena-panel">
+        <div class="panel-title"><h3>주행 공간</h3><span>3.2 × 2.4 m · TOP VIEW</span></div>
+        <div class="arena-wrap"><canvas id="arena" aria-label="로봇 위치와 도크, 주행 경로를 표시하는 평면도"></canvas><div class="map-key"><span class="dot mint"></span> 이동 경로 <span class="dot gold"></span> 도크 <span class="dot gray"></span> 장애물</div></div>
+        <div class="arena-footer"><span id="scenario-description"></span><span id="pose"></span></div>
+      </section>
+      <section class="panel robot-panel">
+        <div class="panel-title"><h3>표현 관절</h3><span>3 AXES</span></div>
+        <canvas id="robot" aria-label="머리와 허리 회전을 표현하는 개념 로봇"></canvas>
+        <p class="caption">LCD1602 얼굴 + NU-IMU · 외형 개념도</p>
+        <div class="joint-controls">
+          <label>머리 좌우 <span>yaw <output id="headYaw-value">0°</output></span><input id="headYaw" type="range" min="-60" max="60" value="0" aria-label="머리 yaw"></label>
+          <label>머리 위아래 <span>pitch <output id="headPitch-value">0°</output></span><input id="headPitch" type="range" min="-25" max="35" value="0" aria-label="머리 pitch"></label>
+          <label>허리 좌우 <span>yaw <output id="waistYaw-value">0°</output></span><input id="waistYaw" type="range" min="-30" max="30" value="0" aria-label="허리 yaw"></label>
+        </div>
+        <p class="note">각도 한계는 시뮬레이션 가정값입니다. 실제 서보·배선·간섭 측정 후 조정합니다.</p>
+      </section>
+      <section class="panel status-panel">
+        <div class="panel-title"><h3>로봇 상태</h3><span class="live-dot"></span></div>
+        <div id="state" class="state">IDLE</div><p id="reason" class="reason" aria-live="polite">명령 대기</p>
+        <div class="actions"><button id="dock" class="primary">자동 도킹</button><button id="welcome" class="secondary">환영 동작</button><button id="stop" class="danger">정지</button></div>
+        <div class="metrics"><div><span>이동 속도</span><b id="linear">0.000 <small>m/s</small></b></div><div><span>회전 속도</span><b id="angular">0.00 <small>rad/s</small></b></div><div><span>왼쪽 바퀴</span><b id="left">0.00 <small>rad/s</small></b></div><div><span>오른쪽 바퀴</span><b id="right">0.00 <small>rad/s</small></b></div></div>
+        <div class="sensors"><div><span>전방 ToF</span><b id="tof">—</b></div><div><span>도크 신호</span><b id="beacon">—</b></div><div><span>도크 접점 / 충전</span><b id="contact">—</b></div><div><span>도킹 시도</span><b id="attempt">0 / 2</b></div></div>
+        <label class="battery-label">가상 배터리 <output id="battery-value">70%</output><input id="battery" type="range" min="5" max="100" value="70" aria-label="가상 배터리 잔량"></label>
+        <p class="note">25% 미만 자동 도킹 · 15% 미만 이동 차단<br>현재 실물 얼굴은 USB 전원이며 배터리는 가상 모델입니다.</p>
+      </section>
+    </div>
+    <div class="lower-grid">
+      <section class="panel manual-panel">
+        <div class="panel-title"><h3>수동 주행</h3><span>HOLD TO DRIVE</span></div>
+        <div class="manual-body"><div class="dpad"><button data-drive="forward" aria-label="전진">↑</button><button data-drive="left" aria-label="좌회전">←</button><button data-drive="backward" aria-label="후진">↓</button><button data-drive="right" aria-label="우회전">→</button></div><p>버튼을 누르는 동안 주행합니다.<br><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> 또는 방향키<br><kbd>Space</kbd> 즉시 정지</p></div>
+        <p class="note">자동 도킹을 ‘정지’한 뒤 수동 조작하세요. 접촉·오류 상태에서는 복구 후 실행하세요.</p>
+      </section>
+      <section class="panel fault-panel">
+        <div class="panel-title"><h3>문제 상황 주입</h3><button id="clear-fault" class="text-button">오류 해제 ↗</button></div>
+        <div class="fault-controls" id="fault-controls"></div>
+        <p class="note">정지 원인을 끈 뒤 ‘오류 해제’를 누르세요. 통신 단절 시 수동 주행은 멈추고, 정상 센서의 자율 도킹은 계속됩니다.</p>
+      </section>
+      <section class="panel log-panel">
+        <div class="panel-title"><h3>이벤트 기록</h3><span>SIM TIME</span></div><ol id="events"></ol>
+      </section>
+    </div>
+    <section class="model-notes"><div><span class="eyebrow">MODEL BOUNDARY</span><p><strong>5개 구동축, 평면 차동 구동.</strong> 바퀴 Ø60 mm · 윤거 150 mm · 최대 0.15 m/s · 제어 50 Hz. 옆으로 직접 이동하지 않습니다.</p></div><p>이상적인 거리·도크 위치를 사용하는 운동학 시뮬레이션입니다. NU-87 펌웨어 실행, 실제 IR 유도, 마찰·전복·토크·충전 회로 검증은 포함하지 않습니다. 실험 중인 5축 이동 설계는 2축 책상형 PoC와 구분합니다.</p></section>
+    <p id="feedback" class="feedback" role="status"></p>
+  </main>
+  <footer>microWallaby / SOFTWARE FIRST <span>Mac mini → MacBook · 브라우저에서 오프라인 실행</span></footer>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

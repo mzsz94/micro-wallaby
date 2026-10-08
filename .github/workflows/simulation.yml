@@ -1,0 +1,39 @@
+name: software simulation
+
+on:
+  push:
+    paths:
+      - "simulation/**"
+      - ".github/workflows/simulation.yml"
+  pull_request:
+    paths:
+      - "simulation/**"
+      - ".github/workflows/simulation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check browser source and simulation behavior
+        working-directory: simulation
+        run: |
+          npm run check
+          npm test
+          python3 -m py_compile serve.py package.py
+      - name: Build portable MacBook bundle
+        run: python3 simulation/package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: micro-wallaby-simulation
+          path: simulation/dist/micro-wallaby-simulation.zip
+          if-no-files-found: error

@@ -1,0 +1,14 @@
+{
+  "name": "micro-wallaby-simulation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hardware-free differential-drive and docking concept simulator",
+  "scripts": {
+    "start": "python3 serve.py",
+    "test": "node --test model.test.mjs",
+    "check": "node --check app.mjs && node --check model.mjs",
+    "package": "python3 package.py"
+  },
+  "engines": { "node": ">=22" }
+}
