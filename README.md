@@ -25,6 +25,15 @@ NU87은 I2C 통신 수정, 맥북 측 자이로 보정, 바닥 자세 기준 및
 SDK·의존성·펌웨어 바이너리와 원본 연속 로그는 포함하지 않으며 제공된 스크립트로
 환경을 구성하고 다시 빌드합니다.
 
+## NU87 → NU40DK-KIT OLED · OTA 중계
+
+NU87의 별도 AmebaD Arduino 앱으로 NU40 OLED에 문자열·움직이는 얼굴을 보내고,
+USB UART에서 받은 BLE SMP 요청을 중계합니다. NU40의 무선 펌웨어 업데이트와
+KIT 원격 제어에 사용합니다. 기존 IMU 대시보드 앱은 그대로 사용할 수 있습니다.
+
+- [중계 펌웨어·빌드·기록·검증](firmware/nu87_nu40_bridge/README.md)
+- [NU40 수신·KIT·서명 OTA 코드](https://github.com/mzsz94/nu40-ble-display/tree/feat/nu40-kit-ota)
+
 ## 확인된 보드 상태
 
 - 보드: NUCODE NU40-DK / nRF52840

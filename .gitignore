@@ -16,3 +16,7 @@ doc/
 !web/tools/
 !web/tools/*.py
 !web/tools/*.sh
+
+# The self-contained NU87 BLE bridge ships its host tools.
+!firmware/nu87_nu40_bridge/tools/
+!firmware/nu87_nu40_bridge/tools/*.py

@@ -1,0 +1,12 @@
+build/
+__pycache__/
+*.pyc
+*.bin
+*.uf2
+*.elf
+*.axf
+*.map
+*.hex
+*.pem
+*.key
+.ruff_cache/
