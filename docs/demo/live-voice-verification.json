@@ -1,0 +1,36 @@
+{
+  "input": "Offline synthetic Korean WAV, actual local Whisper and llama.cpp inference",
+  "selected_mode": "report",
+  "elapsed_ms": 9251,
+  "engine": "local-llm-analysis",
+  "matching_display_ack": true,
+  "visible_oled_pixels_verified": false,
+  "browser_errors": [],
+  "external_browser_requests": [],
+  "files": [
+    {
+      "file": "06-local-voice-verified.gif",
+      "bytes": 4812514,
+      "sha256": "357bc5d7d93605089e7832325fcc600be14b3139fe7358859cc254b7bf0efae9",
+      "resolution": [
+        1120,
+        900
+      ],
+      "frames": 146,
+      "duration_ms": 18260
+    },
+    {
+      "file": "military-wallaby-local-voice.mp4",
+      "bytes": 298750,
+      "sha256": "9a7054bf8a291dc9bb173de19a5837798bdb8141ed48ed9e8330c214545f54a2",
+      "duration_seconds": 18.24,
+      "streams": [
+        {
+          "codec_name": "h264",
+          "width": 1120,
+          "height": 900
+        }
+      ]
+    }
+  ]
+}

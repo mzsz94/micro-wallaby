@@ -10,6 +10,12 @@
 **[프로젝트 보고서](docs/military-wallaby-report.md)** — 목적, 기술스택, 해결 과제와
 NU87 중계 → BLE SMP → NU40 펌웨어 OTA 구성 및 검증 범위를 정리했습니다.
 
+[Linux / WSL 음성·LLM 실행](voice_tactical/LINUX.md) ·
+[NU87 Wi-Fi · NU40 BLE 실기 확인](docs/demo/HARDWARE-CHECK.md)
+
+**[실제 로컬 음성 처리 GIF·MP4](docs/demo/VOICE-CHECK.md)** — 합성 한국어 WAV → Whisper →
+llama.cpp → NU87 Wi-Fi → NU40 BLE 표시 ACK를 별도로 확인했습니다. 음성 오인식도 기록합니다.
+
 `test/military-wallaby`는 **NU40DK 컨트롤 타워의 PDM 마이크 → BLE → NU87 Tiny 왈라비
 → Wi-Fi → HostPC 로컬 Whisper·LLM 서버 → NU87 명령 수락 → Motion Lab 동작**을
 연결하는 미니 프로젝트입니다. 음성 질의, 상황 보고 요약·SALUTE 변환, 명령 정리,

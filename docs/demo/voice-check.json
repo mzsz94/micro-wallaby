@@ -1,0 +1,93 @@
+{
+  "observed_on": "2026-10-11 Asia/Seoul",
+  "models": {
+    "stt": {
+      "repository": "Systran/faster-whisper-small",
+      "revision": "536b0662742c02347bc0e980a01041f333bce120",
+      "device": "CPU int8"
+    },
+    "llm": {
+      "repository": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+      "revision": "91cad51170dc346986eccefdc2dd33a9da36ead9",
+      "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+      "llama_cpp_revision": "aa94f2086147cd4bfbcff818ce998dffce5fcb39",
+      "response_format": "json_schema; independent source validation remains enabled"
+    }
+  },
+  "python_packages": {
+    "faster-whisper": "1.2.1",
+    "ctranslate2": "4.8.2",
+    "av": "16.0.1",
+    "onnxruntime": "1.31.0",
+    "numpy": "2.5.3",
+    "huggingface-hub": "2.2.0"
+  },
+  "runtime": {
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "physical_external_network_disconnection_tested": false,
+    "external_browser_requests": [],
+    "browser_errors": []
+  },
+  "cases": [
+    {
+      "scenario": "query",
+      "input": "Microsoft Heami offline synthetic Korean WAV",
+      "reference": "상황 보고에 어떤 항목을 포함해야 하나요?",
+      "recognized_transcript": "상완보고의 어떤 항목을 포함해야 하나요?",
+      "wav_seconds": 3.9,
+      "selected_mode": "query",
+      "engine": "local-llm-evidence",
+      "elapsed_ms": 18156,
+      "display_matching_ack": true,
+      "source_ids": [
+        "training-salute",
+        "training-wallaby",
+        "training-report"
+      ],
+      "unknown_fields": null,
+      "order_count": null
+    },
+    {
+      "scenario": "report",
+      "input": "Microsoft Heami offline synthetic Korean WAV",
+      "reference": "상황 보고. 보고자는 지원팀. 시간은 14시 20분. 위치는 집결지. 관측은 장비 점검 완료. 요청은 추가 안내.",
+      "recognized_transcript": "상호한 보고 보고자는 지원팀 시간은 14시 20분 위치는 집결지 관측은 장비 점검 완료 요청은 추가 안내",
+      "wav_seconds": 13.57,
+      "selected_mode": "report",
+      "engine": "local-llm-analysis",
+      "elapsed_ms": 10197,
+      "display_matching_ack": true,
+      "source_ids": [],
+      "unknown_fields": [
+        "size",
+        "unit",
+        "equipment"
+      ],
+      "order_count": null
+    },
+    {
+      "scenario": "orders",
+      "input": "Microsoft Heami offline synthetic Korean WAV",
+      "reference": "지시 정리. 지원팀은 15시까지 창고에서 장비를 점검한다. 기록 담당자는 점검 결과를 정리한다.",
+      "recognized_transcript": "지시 정리. 지원팀은 15시까지 참고해서 장비를 점검한다. 기록 담당자는 점검 결과를 정리한다.",
+      "wav_seconds": 9.9,
+      "selected_mode": "orders",
+      "engine": "local-llm-analysis",
+      "elapsed_ms": 8316,
+      "display_matching_ack": true,
+      "source_ids": [],
+      "unknown_fields": null,
+      "order_count": 2
+    }
+  ],
+  "limitations": [
+    "Synthetic WAV functional checks, not human/noisy-speech accuracy benchmarks",
+    "Contains uncorrected recognition errors",
+    "Modes were explicitly selected before each WAV upload",
+    "Matching display ACK only; physical pixels not observed",
+    "NU40 continuous microphone capture unverified",
+    "TTS listening, physical motor control, real IMU and OTA were not part of these checks"
+  ]
+}

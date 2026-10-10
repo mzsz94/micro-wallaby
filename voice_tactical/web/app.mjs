@@ -63,6 +63,7 @@ function updateControls() {
   $('send-text').disabled = busy;
   $('audio-file').disabled = busy || !status?.stt?.ready;
   $('speak-answer').disabled = !localVoice || !currentResult || busy || speaking;
+  $('edit-transcript').disabled = !currentResult || busy || micStarting || micStopping;
   $('voice-orbit').classList.toggle('listening', active);
   $('input-state').textContent = speaking ? '응답 재생 중' : busy ? '처리 중' : active ? 'LISTENING' : '대기';
   $('voice-title').textContent = speaking ? '왈라비가 답하고 있습니다.' : busy ? '발화를 정리하고 있습니다.' : active ? '왈라비가 듣고 있습니다.' : '음성으로 시작해 보세요.';
@@ -318,6 +319,7 @@ function renderResult(result) {
   $('device-result').textContent = result.device ? (result.device.acknowledged ? result.kind === 'alert' ? `NU40 스피커 경보 ${result.device.active ? '활성화' : '해제'} 출력 ACK 수신` : '키트 OLED 드라이버 ACK 수신 · 실제 화면은 별도 확인하세요.' : `제어탑 출력 미확인: ${result.device.error || result.device.message || '상태를 확인하세요.'}`) : '';
   if (result.robot) $('device-result').textContent += result.robot.mode === 'local-simulation' ? '\nNU87 미연결 · 로컬 동작 시뮬레이션' : result.robot.accepted ? `\nNU87 명령 수락 · ${result.robot.state || result.robot.command} · 동작은 시뮬레이션으로 표시` : `\nNU87 명령 미확인 · ${result.robot.error || '동작 정지'}`;
   updateVoices();
+  updateControls();
 }
 async function applyResult(result, token) {
   if (token !== generation) return;
@@ -390,6 +392,16 @@ $('text-form').addEventListener('submit', event => { event.preventDefault(); con
 $('audio-file').addEventListener('change', event => { const file = event.target.files[0]; event.target.value = ''; if (file) runTurn({ file }); });
 $('vad-threshold').addEventListener('input', () => { $('vad-value').textContent = Number($('vad-threshold').value).toFixed(3); mic?.threshold(Number($('vad-threshold').value)); });
 $('input-source').addEventListener('change', updateControls);
+$('edit-transcript').addEventListener('click', async () => {
+  if (!currentResult || busy) return;
+  const result = currentResult;
+  await stopMicrophone();
+  $('text-input').value = result.transcript || '';
+  if (['query', 'report', 'orders', 'search'].includes(result.kind)) $('mode').value = result.kind;
+  else $('mode').value = 'auto';
+  $('text-input').focus();
+  notice('원문을 입력창에 복사했습니다. 수정 후 보내기를 누르면 새 기록으로 저장하며, 기존 기록은 유지합니다.');
+});
 $('motion-enabled').addEventListener('change', () => { if (!$('motion-enabled').checked) postMotion('stop'); });
 $('tts-enabled').addEventListener('change', async () => {
   if ($('tts-enabled').checked) return;

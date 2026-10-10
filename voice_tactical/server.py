@@ -402,6 +402,7 @@ def main():
     parser.add_argument("--stt-model", type=Path, default=ROOT / "models" / "whisper-small", help="Local faster-whisper/CTranslate2 model directory")
     parser.add_argument("--llm-url", help="Loopback OpenAI-compatible local server base URL")
     parser.add_argument("--llm-model", help="Already-loaded local model name")
+    parser.add_argument("--llm-structured", action="store_true", help="Use JSON schema with a compatible local LLM server")
     parser.add_argument("--gateway", help="NU87 private IPv4 address[:port]")
     parser.add_argument("--gateway-config", type=Path, help="Private local.conf; token is never sent to the browser")
     parser.add_argument("--auto-display", action="store_true", help="Send ASCII processing summaries to the selected NU40")
@@ -410,7 +411,8 @@ def main():
         parser.error("port must be between 1 and 65535")
     try:
         app = VoiceApp(
-            Engine(args.data_dir, knowledge_dir=args.knowledge_dir, llm_url=args.llm_url, llm_model=args.llm_model),
+            Engine(args.data_dir, knowledge_dir=args.knowledge_dir, llm_url=args.llm_url,
+                   llm_model=args.llm_model, llm_structured=args.llm_structured),
             LocalTranscriber(args.stt_model),
             Gateway(host=args.gateway, config_path=args.gateway_config),
             auto_display=args.auto_display,

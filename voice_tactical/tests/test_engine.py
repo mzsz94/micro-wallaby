@@ -105,6 +105,18 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(result["sources"], [])
         self.assertIn("근거를 찾지 못했습니다", result["answer"])
 
+    def test_spoken_order_prefix_punctuation_is_not_an_extra_order(self):
+        for prefix in ("지시 정리. ", "명령 정리。 ", "왈라비 지시 정리: "):
+            with self.subTest(prefix=prefix):
+                result = self.engine.process(prefix + "지원팀은 15시까지 창고에서 장비를 점검한다.")
+                self.assertEqual(result["kind"], "orders")
+                self.assertIsNone(result["motion"])
+                self.assertEqual(len(result["orders"]), 1)
+                self.assertEqual(result["orders"][0]["who"], "지원팀")
+                self.assertEqual(result["orders"][0]["when"], "15시까지")
+        empty = self.engine.process("지시 정리.")
+        self.assertEqual(empty["orders"], [])
+
     def test_records_survive_restart_and_search_is_literal(self):
         first = self.engine.process("보고 위치: 북문, 활동: 배터리 점검 50% 완료")
         restarted = Engine(Path(self.temp.name))
@@ -145,7 +157,7 @@ class EngineTests(unittest.TestCase):
         self.assertIsNone(result["motion"])
         request = opener.open.call_args.args[0]
         self.assertEqual(request.full_url, "http://127.0.0.1:8080/v1/chat/completions")
-        self.assertEqual(opener.open.call_args.kwargs["timeout"], 12)
+        self.assertEqual(opener.open.call_args.kwargs["timeout"], 60)
 
     def test_llm_unfounded_output_and_timeout_fall_back(self):
         engine = Engine(Path(self.temp.name), llm_url="http://127.0.0.1:8080")
@@ -162,6 +174,23 @@ class EngineTests(unittest.TestCase):
         opener.open.side_effect = TimeoutError("test")
         with patch("voice_tactical.engine.build_opener", return_value=opener):
             self.assertIn("llm_fallback", engine.process("SALUTE"))
+
+    def test_schema_evidence_keeps_the_entire_comma_separated_procedure(self):
+        engine = Engine(Path(self.temp.name), llm_url="http://127.0.0.1:11435/v1",
+                        llm_structured=True)
+        quote = "상황보고는 보고자, 관측 시각, 위치, 관측 내용, 실시한 조치, 요청 사항 순서로 정리합니다."
+        content = {"excerpts": [{"source_id": "training-report", "quote": quote}]}
+        opener = Mock()
+        opener.open.return_value = io.BytesIO(json.dumps({"choices": [{"message": {
+            "content": json.dumps(content)}}]}).encode())
+        with patch("voice_tactical.engine.build_opener", return_value=opener):
+            result = engine.process("상황 보고 양식 알려줘")
+        self.assertIn(quote, result["answer"])
+        payload = json.loads(opener.open.call_args.args[0].data)
+        schema = payload["response_format"]["json_schema"]["schema"]
+        choices = schema["properties"]["excerpts"]["items"]["properties"]["quote"]["enum"]
+        self.assertIn(quote, choices)
+        self.assertNotIn("상황보고는 보고자", choices)
 
     def test_llm_rejects_remote_endpoints_credentials_and_redirects(self):
         for url in ["https://example.com", "http://192.168.0.1:8080", "http://localtest.me", "http://127.0.0.1@evil.test",

@@ -73,6 +73,41 @@ class LocalAnalysisTests(unittest.TestCase):
             self.assertEqual(self.engine.record_device_alert(True, 3)["motion"], "stop")
             call.assert_not_called()
 
+    def test_multi_clause_summary_is_still_rejected(self):
+        text = "상황 보고. 위치: 창고. 관측: 장비 점검 완료. 요청: 추가 안내."
+        result = self.process(text, {"kind": "report", "motion": None,
+            "summary_quotes": [text], "fields": {"location": "창고"}})
+        self.assertIn("llm_fallback", result)
+        self.assertEqual(result["engine"], "local-extractive")
+        self.assertEqual(result["report"]["salute"]["location"], "창고")
+
+    def test_schema_mode_keeps_independent_source_validation(self):
+        self.engine.llm_structured = True
+        text = "상황 보고. 위치: 창고. 인원: 3명으로 추정."
+        opener = Mock()
+        opener.open.return_value = response({"kind": "report", "motion": None,
+            "summary_quotes": ["인원: 3명으로 추정."], "fields": {"size": "3명"}})
+        with patch("voice_tactical.engine.build_opener", return_value=opener):
+            result = self.engine.process(text)
+        self.assertIn("llm_fallback", result)
+        self.assertIn("추정", result["report"]["salute"]["size"])
+        request = json.loads(opener.open.call_args.args[0].data)
+        self.assertEqual(request["response_format"]["type"], "json_schema")
+        schema = request["response_format"]["json_schema"]["schema"]
+        self.assertEqual(schema["properties"]["summary_quotes"]["maxItems"], 3)
+        self.assertNotIn(text, schema["properties"]["summary_quotes"]["items"]["enum"])
+
+    def test_basic_mode_preserves_json_object_server_compatibility(self):
+        self.assertEqual(self.engine._llm_format("unused", {}), {"type": "json_object"})
+
+    def test_summary_retains_observation_when_model_omits_that_field(self):
+        result = self.process("상황 보고. 위치: 창고. 관측: 장비 점검 완료. 요청: 추가 안내.", {
+            "kind": "report", "motion": None, "summary_quotes": ["위치: 창고."],
+            "fields": {"location": "창고", "request": "추가 안내"}})
+        self.assertEqual(result["engine"], "local-llm-analysis")
+        self.assertIn("장비 점검 완료", result["answer"])
+        self.assertIn("추가 안내", result["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()

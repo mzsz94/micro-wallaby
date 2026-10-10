@@ -2,6 +2,9 @@
 
 [상세 프로젝트 보고서](../military-wallaby-report.md) · [실행·보드 연결·OTA 안내](../../voice_tactical/README.md)
 
+**[실제 로컬 음성 → OLED ACK 영상](VOICE-CHECK.md)** — 합성 WAV를 실제 Whisper·llama.cpp로
+처리한 별도 녹화입니다. 아래의 5개 상황 영상은 자막 입력·시뮬레이션 시연입니다.
+
 ## 프로젝트 목적
 
 - **외부망 없이 음성으로 교범 질의·상황 보고 요약·표준 보고 양식 변환·지시사항 정리를 수행하는 핸즈프리 전술 AI 인터페이스 개발.**
@@ -141,3 +144,6 @@ WALLABY_PLAYWRIGHT_MODULE="$PWD/build/demo-recorder/node_modules/playwright/inde
 
 [검증 요약](verification.json)은 녹화 완료 시 자동 갱신되며 파일별 길이·프레임 수·SHA-256과
 장면별 이동량·표정·고개 움직임·이벤트를 기록합니다. MP4도 동일 프레임으로 함께 갱신합니다.
+
+별도로 수행한 [NU87 Wi-Fi · NU40 BLE 실기 확인](HARDWARE-CHECK.md)은 영상의
+시뮬레이션 범위와 구분해 기록했습니다.
