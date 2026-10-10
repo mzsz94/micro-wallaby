@@ -1,0 +1,46 @@
+/*
+ * microWallaby fixture B: touch A0 characterization
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+#include <zephyr/dt-bindings/pinctrl/amebad-pinctrl.h>
+
+/ {
+	aliases {
+		mw-touch-d0 = &mw_touch_d0;
+	};
+
+	mw_inputs {
+		compatible = "gpio-keys";
+		polling-mode;
+
+		mw_touch_d0: touch_d0 {
+			gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+			label = "Touch D0 reference";
+			zephyr,code = <INPUT_BTN_TOUCH>;
+		};
+	};
+
+	zephyr,user {
+		io-channels = <&adc 4>;
+		io-channel-names = "touch-a0";
+	};
+};
+
+&pinctrl {
+	mw_adc_default: mw_adc_default {
+		group1 {
+			pinmux = <AMEBA_PINMUX('B', 1, AMEBA_GPIO)>;
+			digital-input-disable;
+		};
+	};
+};
+
+&adc {
+	pinctrl-0 = <&mw_adc_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};

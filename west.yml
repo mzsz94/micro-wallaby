@@ -1,0 +1,15 @@
+manifest:
+  version: "1.2"
+
+  remotes:
+    - name: nu87-staging
+      url-base: https://github.com/manjae-cho
+
+  projects:
+    - name: zephyr
+      remote: nu87-staging
+      revision: e70694102ad6f910485155a824c5483daf605a9f
+      import: true
+
+  self:
+    path: micro-wallaby
