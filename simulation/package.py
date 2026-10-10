@@ -9,6 +9,7 @@ SOURCE_FILES = (
     "README.md", "index.html", "style.css", "app.mjs", "model.mjs",
     "model.test.mjs", "serve.py", "start.command", "package.json", "package.py",
     "voice-control.mjs", "voice-control.test.mjs", "alert.css",
+    "render-layout.mjs", "render-layout.test.mjs",
 )
 
 

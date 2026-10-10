@@ -1,5 +1,6 @@
 import { CONFIG, SCENARIOS, Simulator } from './model.mjs';
 import { createVoiceController, isParentMessage } from './voice-control.mjs';
+import { arenaLayout } from './render-layout.mjs';
 
 const $ = (id) => document.getElementById(id);
 const sim = new Simulator();
@@ -277,10 +278,9 @@ function surface(id) {
 
 function arena(s) {
   const { ctx, width, height } = surface('arena');
-  const padding = 28;
-  const scale = Math.min((width - padding * 2) / s.world.width, (height - 65) / s.world.height);
-  const offsetX = (width - s.world.width * scale) / 2;
-  const offsetY = (height - s.world.height * scale) / 2 - 8;
+  const layout = arenaLayout(width, height, s.world);
+  if (!layout) return;
+  const { scale, offsetX, offsetY } = layout;
   const xy = (x, y) => [offsetX + x * scale, offsetY + (s.world.height - y) * scale];
   ctx.strokeStyle = '#293739'; ctx.lineWidth = 1;
   for (let x = 0; x <= s.world.width + 1e-9; x += .2) { ctx.beginPath(); ctx.moveTo(...xy(x, 0)); ctx.lineTo(...xy(x, s.world.height)); ctx.stroke(); }
