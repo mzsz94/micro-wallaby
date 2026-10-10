@@ -29,12 +29,12 @@ make monitor
 - macOS 설정의 개인정보 보호 및 보안에서 Chrome의 Bluetooth 권한을 확인한다.
 - 장치 창은 페이지 자동 실행이 아니라 버튼 클릭으로만 열 수 있다.
 
-## 목록에 `NU40 Home Remote`가 없다
+## 목록에 `MZSZ-TOY`가 없다
 
 - 보드에 BLE 버전 펌웨어가 플래시됐는지 확인한다.
 - USB 전원이 들어와 있는지 확인한다.
 - 다른 브라우저나 앱이 이미 연결 중이면 연결을 끊는다.
-- `make monitor`에서 `BLE advertising: NU40 Home Remote`를 확인한다.
+- `make monitor`에서 `BLE advertising: MZSZ-TOY`를 확인한다.
 
 ## 연결 직후 끊긴다
 

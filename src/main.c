@@ -29,6 +29,12 @@ static const struct gpio_dt_spec touch_d0 =
 	GPIO_DT_SPEC_GET(TOUCH_NODE, touch_d0_gpios);
 static const struct adc_dt_spec touch_a0 =
 	ADC_DT_SPEC_GET_BY_IDX(TOUCH_NODE, 0);
+static const struct adc_dt_spec joystick_x =
+	ADC_DT_SPEC_GET_BY_IDX(TOUCH_NODE, 1);
+static const struct adc_dt_spec joystick_y =
+	ADC_DT_SPEC_GET_BY_IDX(TOUCH_NODE, 2);
+static const struct gpio_dt_spec joystick_sw =
+	GPIO_DT_SPEC_GET(TOUCH_NODE, joystick_sw_gpios);
 static const struct device *const imu_bus = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 static const struct gpio_dt_spec house_leds[] = {
 	GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios),
@@ -44,12 +50,14 @@ struct sensor_packet {
 	uint16_t touch_mv;
 	uint16_t accel_mg[3];
 	uint16_t gyro_centi_dps[3];
+	uint8_t joystick_x;
+	uint8_t joystick_y;
 } __packed;
 
-BUILD_ASSERT(sizeof(struct sensor_packet) == 18,
+BUILD_ASSERT(sizeof(struct sensor_packet) == 20,
 	     "BLE sensor packet must fit the default ATT payload");
 
-static struct sensor_packet latest_packet = { .version = 1 };
+static struct sensor_packet latest_packet = { .version = 2 };
 static bool notifications_enabled;
 
 static const struct bt_uuid_128 home_service_uuid =
@@ -121,6 +129,13 @@ static const struct bt_data scan_response_data[] = {
 		sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
+static int start_advertising(void)
+{
+	return bt_le_adv_start(BT_LE_ADV_CONN_FAST_1,
+			       advertising_data, ARRAY_SIZE(advertising_data),
+			       scan_response_data, ARRAY_SIZE(scan_response_data));
+}
+
 static void connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err == 0) {
@@ -132,8 +147,16 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
+	int ret;
+
 	notifications_enabled = false;
 	printk("BLE disconnected: %u\n", reason);
+	ret = start_advertising();
+	if (ret == 0 || ret == -EALREADY) {
+		printk("BLE advertising restarted: %s\n", CONFIG_BT_DEVICE_NAME);
+	} else {
+		printk("BLE advertising restart failed: %d\n", ret);
+	}
 }
 
 BT_CONN_CB_DEFINE(connection_callbacks) = {
@@ -149,9 +172,7 @@ static int initialize_bluetooth(void)
 		return ret;
 	}
 
-	return bt_le_adv_start(BT_LE_ADV_CONN_FAST_1,
-			       advertising_data, ARRAY_SIZE(advertising_data),
-			       scan_response_data, ARRAY_SIZE(scan_response_data));
+	return start_advertising();
 }
 
 enum imu_kind {
@@ -338,30 +359,48 @@ static int read_lsm6ds3tr(const struct imu_device *imu, int32_t accel_mg[3],
 	return 0;
 }
 
+static uint8_t adc_raw_to_u8(int16_t raw)
+{
+	return (uint8_t)CLAMP(((int32_t)raw * UINT8_MAX) / 4095,
+			      0, UINT8_MAX);
+}
+
 int main(void)
 {
-	struct adc_sequence sequence = { 0 };
+	struct adc_sequence touch_sequence = { 0 };
+	struct adc_sequence joystick_x_sequence = { 0 };
+	struct adc_sequence joystick_y_sequence = { 0 };
 	struct imu_device imu;
 	int16_t touch_raw = 0;
+	int16_t joystick_x_raw = 0;
+	int16_t joystick_y_raw = 0;
 	uint16_t packet_sequence = 0;
 	uint8_t print_counter = 0;
 	int ret;
 
 	k_msleep(1000);
-	printk("\nNU40-DK BLE home remote\n");
+	printk("\nNU40-DK BLE sensor game remote\n");
 	printk("Touch: D0=P0.02, A0=P0.03/AIN1, interval=%d ms\n",
 	       SAMPLE_INTERVAL_MS);
+	printk("Joystick: X=P0.04/AIN2, Y=P0.28/AIN4, SW=P1.03\n");
 
-	if (!gpio_is_ready_dt(&touch_d0) || !adc_is_ready_dt(&touch_a0)) {
-		printk("ERROR: touch GPIO or ADC is not ready\n");
+	if (!gpio_is_ready_dt(&touch_d0) || !adc_is_ready_dt(&touch_a0) ||
+	    !adc_is_ready_dt(&joystick_x) || !adc_is_ready_dt(&joystick_y) ||
+	    !gpio_is_ready_dt(&joystick_sw)) {
+		printk("ERROR: touch or joystick GPIO/ADC is not ready\n");
 		return -ENODEV;
 	}
 
 	ret = gpio_pin_configure_dt(&touch_d0, GPIO_INPUT);
+	ret |= gpio_pin_configure_dt(&joystick_sw, GPIO_INPUT);
 	ret |= adc_channel_setup_dt(&touch_a0);
-	ret |= adc_sequence_init_dt(&touch_a0, &sequence);
+	ret |= adc_channel_setup_dt(&joystick_x);
+	ret |= adc_channel_setup_dt(&joystick_y);
+	ret |= adc_sequence_init_dt(&touch_a0, &touch_sequence);
+	ret |= adc_sequence_init_dt(&joystick_x, &joystick_x_sequence);
+	ret |= adc_sequence_init_dt(&joystick_y, &joystick_y_sequence);
 	if (ret != 0) {
-		printk("ERROR: touch input setup failed (%d)\n", ret);
+		printk("ERROR: touch or joystick input setup failed (%d)\n", ret);
 		return ret;
 	}
 
@@ -400,23 +439,36 @@ int main(void)
 	}
 
 	printk("Columns: time_ms touch_D0 touch_ADC touch_mV "
-	       "accel_mg[x,y,z] gyro_mdps[x,y,z]\n");
+	       "joy_X joy_Y joy_SW accel_mg[x,y,z] gyro_mdps[x,y,z]\n");
 
 	while (true) {
 		int32_t touch_mv;
 		int touch_digital;
+		int joystick_pressed;
+		int touch_ret;
+		int joystick_x_ret;
+		int joystick_y_ret;
 		int32_t accel_mg[3] = { 0 };
 		int32_t gyro_mdps[3] = { 0 };
 		int imu_ret = -ENODEV;
 
 		touch_digital = gpio_pin_get_dt(&touch_d0);
-		sequence.buffer = &touch_raw;
-		sequence.buffer_size = sizeof(touch_raw);
-		ret = adc_read_dt(&touch_a0, &sequence);
+		joystick_pressed = gpio_pin_get_dt(&joystick_sw);
+
+		touch_sequence.buffer = &touch_raw;
+		touch_sequence.buffer_size = sizeof(touch_raw);
+		touch_ret = adc_read_dt(&touch_a0, &touch_sequence);
 		touch_mv = touch_raw;
-		if (ret == 0) {
-			ret = adc_raw_to_millivolts_dt(&touch_a0, &touch_mv);
+		if (touch_ret == 0) {
+			touch_ret = adc_raw_to_millivolts_dt(&touch_a0, &touch_mv);
 		}
+
+		joystick_x_sequence.buffer = &joystick_x_raw;
+		joystick_x_sequence.buffer_size = sizeof(joystick_x_raw);
+		joystick_x_ret = adc_read_dt(&joystick_x, &joystick_x_sequence);
+		joystick_y_sequence.buffer = &joystick_y_raw;
+		joystick_y_sequence.buffer_size = sizeof(joystick_y_raw);
+		joystick_y_ret = adc_read_dt(&joystick_y, &joystick_y_sequence);
 
 		if (imu.kind == IMU_MPU6XXX) {
 			imu_ret = read_mpu6xxx(&imu, accel_mg, gyro_mdps);
@@ -425,8 +477,9 @@ int main(void)
 		}
 
 		if (imu_ret == 0) {
-			latest_packet.version = 1;
-			latest_packet.flags = touch_digital > 0 ? BIT(0) : 0;
+			latest_packet.version = 2;
+			latest_packet.flags = (touch_digital > 0 ? BIT(0) : 0) |
+					      (joystick_pressed > 0 ? BIT(1) : 0);
 			latest_packet.sequence = sys_cpu_to_le16(++packet_sequence);
 			latest_packet.touch_mv =
 				sys_cpu_to_le16((uint16_t)CLAMP(touch_mv, 0, UINT16_MAX));
@@ -438,6 +491,10 @@ int main(void)
 					sys_cpu_to_le16((uint16_t)CLAMP(gyro_mdps[axis] / 10,
 								    INT16_MIN, INT16_MAX));
 			}
+			latest_packet.joystick_x = joystick_x_ret == 0 ?
+				adc_raw_to_u8(joystick_x_raw) : 127;
+			latest_packet.joystick_y = joystick_y_ret == 0 ?
+				adc_raw_to_u8(joystick_y_raw) : 127;
 
 			if (notifications_enabled) {
 				bt_gatt_notify(NULL, &home_service.attrs[2],
@@ -449,11 +506,24 @@ int main(void)
 			print_counter = 0;
 			printk("DATA %lld D0=%d ADC=%d mV=",
 			       k_uptime_get(), touch_digital, touch_raw);
-			if (ret == 0) {
+			if (touch_ret == 0) {
 				printk("%d", touch_mv);
 			} else {
-				printk("ERR(%d)", ret);
+				printk("ERR(%d)", touch_ret);
 			}
+			printk(" JX=");
+			if (joystick_x_ret == 0) {
+				printk("%d", joystick_x_raw);
+			} else {
+				printk("ERR(%d)", joystick_x_ret);
+			}
+			printk(" JY=");
+			if (joystick_y_ret == 0) {
+				printk("%d", joystick_y_raw);
+			} else {
+				printk("ERR(%d)", joystick_y_ret);
+			}
+			printk(" JSW=%d", joystick_pressed);
 			if (imu_ret == 0) {
 				printk(" AX=%d AY=%d AZ=%d GX=%d GY=%d GZ=%d",
 				       accel_mg[0], accel_mg[1], accel_mg[2],

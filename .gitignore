@@ -13,3 +13,6 @@ modules/
 tools/
 doc/
 .DS_Store
+!web/tools/
+!web/tools/*.py
+!web/tools/*.sh

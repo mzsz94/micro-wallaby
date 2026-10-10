@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: Apache-2.0
+# Minimal manifest matching micro-wallaby f9e463f70d8a and its imported HAL pins.
+manifest:
+  version: "1.2"
+  projects:
+    - name: zephyr
+      url: https://github.com/manjae-cho/zephyr
+      revision: e70694102ad6f910485155a824c5483daf605a9f
+      west-commands: scripts/west-commands.yml
+    - name: cmsis
+      url: https://github.com/zephyrproject-rtos/cmsis
+      revision: 512cc7e895e8491696b61f7ba8066b4a182569b8
+      path: modules/hal/cmsis
+    - name: cmsis_6
+      url: https://github.com/zephyrproject-rtos/CMSIS_6
+      revision: b2dfbe1a20bbd49c2d2c605073799671074bbb30
+      path: modules/hal/cmsis_6
+    - name: hal_realtek
+      url: https://github.com/zephyrproject-rtos/hal_realtek
+      revision: 9a4caf9846d6f0ceb6b38f971a771b1325c1e4b9
+      path: modules/hal/realtek
+  self:
+    path: manifest

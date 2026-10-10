@@ -1,0 +1,49 @@
+{
+  "board": "nu87",
+  "serialNumber": "1450a884ea74ef11b07cdf515c28aedc",
+  "gravity": [
+    -0.7229257575757576,
+    -0.09062878787878788,
+    0.7499919191919192
+  ],
+  "label": "바닥 기준 · USB-C 축 정렬",
+  "capturedAt": "2026-10-10T05:37:14.513529+00:00",
+  "gyroBiasDps": [
+    0.9839184210526316,
+    -4.3115925,
+    -1.5356475
+  ],
+  "calibrationSource": "host",
+  "savedToBoard": false,
+  "estimator": "median of ten contiguous ~2-second gyro means; fixed offset validated in independent 20-second window",
+  "fitSamples": 198,
+  "verificationSamples": 198,
+  "gravityStddev": [
+    0.0017710569793716112,
+    0.0015976281739464146,
+    0.004117331864049349
+  ],
+  "correctedGyroMeanDps": [
+    -0.014544683678894277,
+    0.12814401515151452,
+    -0.016264621212121133
+  ],
+  "correctedGyroStddevDps": [
+    0.18863190518030343,
+    1.8035088389456408,
+    0.21873811788943565
+  ],
+  "flatGravity": [
+    0.10801,
+    0.05232,
+    1.041732
+  ],
+  "flatCapturedAt": "2026-10-10T05:41:54.413000+00:00",
+  "flatSamples": 50,
+  "flatGravityStddev": [
+    0.002054785355491628,
+    0.0023901157003845003,
+    0.0027469790457065667
+  ],
+  "orientationSchemaVersion": 2
+}

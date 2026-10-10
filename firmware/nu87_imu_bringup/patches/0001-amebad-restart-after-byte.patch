@@ -1,0 +1,16 @@
+--- a/drivers/i2c/i2c_ameba.c
++++ b/drivers/i2c/i2c_ameba.c
+@@ -516,7 +516,12 @@
+ 			if (rc != 0) {
+ 				break;
+ 			}
+-			if (m > 0 && b == 0 && (msgs[m].flags & I2C_MSG_RESTART)) {
++			/* AmebaD issues RESTART after this byte, unlike DesignWare.
++			 * Match HAL I2C_MasterRepeatRead(): mark the final byte of
++			 * the preceding message, not the first byte after restart.
++			 */
++			if (b == msgs[m].len - 1 && m + 1 < num_msgs &&
++			    (msgs[m + 1].flags & I2C_MSG_RESTART)) {
+ 				cmd |= BIT_CTRL_IC_DATA_CMD_RESTART;
+ 			}
+ 			if (b == msgs[m].len - 1 && (msgs[m].flags & I2C_MSG_STOP)) {

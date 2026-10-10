@@ -1,12 +1,29 @@
-# NU40-DK BLE 가상 주택 리모컨
+# NU40-DK BLE 오늘의 성장 놀이
 
 Apple Silicon(M1) Mac에서 IDE 없이 NU40-DK, LSM6DS3TR IMU, 터치 센서,
-Web Bluetooth 웹앱으로 가상 주택을 제어하는 프로젝트입니다.
+Web Bluetooth 웹앱으로 0–5세 보호자 동반형 센서 놀이를 설계하고 실행하는
+프로젝트입니다. 현재 실제 게임 규칙과 하드웨어 검증 범위는 문서에 따로 표시합니다.
 
 - 보드: 센서를 10 Hz로 읽고 BLE 알림으로 전송
-- 웹앱: 마우스 또는 센서 리모컨으로 네 방의 조명을 제어
-- 피드백: 웹 스위치 상태를 NU40-DK LED0~LED3에 반영
+- 웹앱: 부모 프롬프트와 오늘 날짜로 색·수·모양·감정 놀이 생성
+- 조작: 마우스·키보드 또는 IMU·터치·아날로그 조이스틱
+- 피드백: 네 번의 성공을 NU40-DK LED0~LED3에 반영
 - 학습 문서: [`docs/`](docs/README.md)
+
+## NU40·NU87 IMU 실시간 대시보드
+
+별도 Zephyr 펌웨어와 로컬 USB 브리지로 가속도·각속도·보드 기울기를 시각화합니다.
+NU87은 I2C 통신 수정, 맥북 측 자이로 보정, 바닥 자세 기준 및 센서 장착 축 정렬을
+포함합니다. NU87의 실제 검증 상태와 UART 셸 제한은 아래 문서에 기록했습니다.
+
+- [대시보드 실행·보정 안내](web/IMU-DASHBOARD.md)
+- [NU40 펌웨어](firmware/nu40_imu_bringup/README.md)
+- [NU87 펌웨어·빌드·플래싱](firmware/nu87_imu_bringup/README.md)
+- [NU87 하드웨어 검증 결과](firmware/nu87_imu_bringup/HARDWARE-RESULT.md)
+
+현재 NU87 및 센서의 보정값은 `firmware/nu87_imu_bringup/calibration/`에 보관합니다.
+SDK·의존성·펌웨어 바이너리와 원본 연속 로그는 포함하지 않으며 제공된 스크립트로
+환경을 구성하고 다시 빌드합니다.
 
 ## 확인된 보드 상태
 
@@ -56,8 +73,11 @@ make flash
 - IMU: NU-IMU-LSM6DS3TR, I2C0 `SDA=P0.26`, `SCL=P0.27`
 - 터치 D0: `P0.02`
 - 터치 A0: `P0.03/AIN1`
+- 조이스틱 X: `P0.04/AIN2`
+- 조이스틱 Y: `P0.28/AIN4`
+- 조이스틱 버튼: `P1.03`, 내부 풀업·Active Low
 - 샘플 주기: 100 ms
-- BLE 장치명: `NU40 Home Remote`
+- BLE 장치명: `MZSZ-TOY`
 
 펌웨어가 실행 중일 때 다음 명령으로 USB 시리얼 값을 확인합니다.
 
@@ -66,18 +86,20 @@ make monitor
 ```
 
 종료는 `Ctrl+C`입니다. `D0`는 터치 디지털 상태, `ADC`와 `mV`는 터치
-아날로그 값입니다. `AX/AY/AZ`는 `mg`, `GX/GY/GZ`는 `mdps` 단위입니다.
+아날로그 값입니다. `JX/JY/JSW`는 조이스틱, `AX/AY/AZ`는 `mg`,
+`GX/GY/GZ`는 `mdps` 단위입니다.
 
-## 가상 주택 웹앱
+## 오늘의 게임 웹앱
 
 ```bash
 make web-install  # 최초 한 번
 make web-dev
 ```
 
-Chrome 또는 Edge에서 `http://localhost:3000`을 엽니다. 마우스 스위치는
-BLE 연결 없이도 작동합니다. 실제 리모컨을 사용하려면 `Bluetooth 연결`을
-누르고 `NU40 Home Remote`를 선택합니다.
+Chrome 또는 Edge에서 `http://localhost:3000`을 엽니다. 부모 프롬프트로
+오늘의 게임을 만든 뒤 마우스 또는 방향키/Enter로 먼저 시험할 수 있습니다.
+실제 리모컨을 사용하려면 `Bluetooth 연결`을 누르고
+`MZSZ-TOY`를 선택합니다.
 
 ```bash
 make web-build

@@ -1,0 +1,43 @@
+/* BARAM-NU40 UF2 bootloader, no SoftDevice: direct application starts at 0x1000.
+ * Verified from this board's INFO_UF2.TXT. Not for the older NRF52BOOT/S140 board.
+ */
+&i2c0 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+};
+
+&i2c0_default {
+	group1 {
+		psels = <NRF_PSEL(TWIM_SDA, 0, 26)>, <NRF_PSEL(TWIM_SCL, 0, 27)>;
+		bias-pull-up;
+	};
+};
+
+&adc { status = "disabled"; };
+&uart0 { status = "disabled"; };
+&uart1 { status = "disabled"; };
+&pwm0 { status = "disabled"; };
+&spi1 { status = "disabled"; };
+&spi3 { status = "disabled"; };
+&ieee802154 { status = "disabled"; };
+
+&flash0 {
+	partitions {
+		/delete-node/ partition@1000;
+		/delete-node/ partition@10000;
+		/delete-node/ partition@76000;
+		/delete-node/ partition@dc000;
+
+		slot0_partition: partition@1000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x00001000 0x000db000>;
+		};
+		storage_partition: partition@dc000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000dc000 0x00004000>;
+		};
+	};
+};
+

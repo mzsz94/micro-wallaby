@@ -1,10 +1,10 @@
-import HomeLab from "./HomeLab";
+import DailyGameLab from "./DailyGameLab";
 
 export const metadata = {
-  title: "NU Home Lab",
-  description: "NU40-DK 센서 리모컨으로 제어하는 가상 주택 실험실",
+  title: "NU Play Lab",
+  description: "NU40-DK 센서 리모컨과 함께하는 4–5세 오늘의 성장 놀이",
 };
 
 export default function Home() {
-  return <HomeLab />;
+  return <DailyGameLab />;
 }

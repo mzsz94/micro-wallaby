@@ -2,7 +2,7 @@
 
 ## 장치와 UUID
 
-- 광고 이름: `NU40 Home Remote`
+- 광고 이름: `MZSZ-TOY`
 - 서비스: `7b1e0001-21a8-4f8c-bb2d-4c7d2156f001`
 - 센서 특성: `7b1e0002-21a8-4f8c-bb2d-4c7d2156f001`
 - 명령 특성: `7b1e0003-21a8-4f8c-bb2d-4c7d2156f001`
@@ -11,13 +11,14 @@
 
 ## 센서 패킷
 
-BLE 기본 ATT 데이터 20바이트 안에 들어가도록 18바이트, little-endian으로
-설계했다.
+BLE 기본 ATT 데이터 20바이트 안에 정확히 들어가도록 버전 2 패킷을
+20바이트, little-endian으로 설계했다. 웹은 기존 버전 1의 18바이트 패킷도
+읽을 수 있어 플래시 전후 전환 중에도 동작한다.
 
 | 오프셋 | 크기 | 형식 | 의미 |
 |---:|---:|---|---|
-| 0 | 1 | uint8 | 프로토콜 버전, 현재 1 |
-| 1 | 1 | bit flags | bit0 = 터치 D0 |
+| 0 | 1 | uint8 | 프로토콜 버전, 현재 2 |
+| 1 | 1 | bit flags | bit0 = 터치 D0, bit1 = 조이스틱 버튼 |
 | 2 | 2 | uint16 LE | 패킷 순번 |
 | 4 | 2 | uint16 LE | 터치 전압 mV |
 | 6 | 2 | int16 LE | AX, mg |
@@ -26,6 +27,8 @@ BLE 기본 ATT 데이터 20바이트 안에 들어가도록 18바이트, little-
 | 12 | 2 | int16 LE | GX, 0.01°/s |
 | 14 | 2 | int16 LE | GY, 0.01°/s |
 | 16 | 2 | int16 LE | GZ, 0.01°/s |
+| 18 | 1 | uint8 | 조이스틱 X, 0~255 |
+| 19 | 1 | uint8 | 조이스틱 Y, 0~255 |
 
 웹에서는 `DataView.getUint16(offset, true)`와
 `DataView.getInt16(offset, true)`로 해석한다. 마지막 `true`는 little-endian을
@@ -44,15 +47,17 @@ BLE 기본 ATT 데이터 20바이트 안에 들어가도록 18바이트, little-
 ```text
 웹에서 연결 버튼 클릭
   → navigator.bluetooth.requestDevice()
-  → NU40 Home Remote 선택
+  → MZSZ-TOY 선택
   → GATT 서비스와 두 특성 검색
   → 센서 특성 startNotifications()
   → 10 Hz 패킷 수신
-  → 마우스/터치 상태 변경 시 명령 특성 write
+  → IMU·터치·조이스틱으로 게임 조작
+  → 정답 진행 시 명령 특성 write
 ```
 
 브라우저 보안 정책 때문에 장치 선택 창은 반드시 사용자의 클릭 이벤트 안에서
-열어야 한다. 새로고침하거나 보드가 재부팅되면 다시 연결해야 한다.
+열어야 한다. 새로고침하거나 보드가 재부팅되면 다시 연결해야 한다. 연결이
+끊긴 뒤 펌웨어는 광고를 자동 재시작하므로 보드 RESET 없이 다시 선택할 수 있다.
 
 ## 현재 보안 수준
 
