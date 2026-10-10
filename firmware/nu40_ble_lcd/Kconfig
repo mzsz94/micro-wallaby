@@ -1,0 +1,77 @@
+mainmenu "NU40 BLE LCD"
+
+config LCD_SSD1306_PROFILE
+	bool "Enable an explicitly verified SSD1306 128x32 I2C OLED profile"
+	default n
+	help
+	  SSD1306 only: 128x32, 16x4 ASCII cells, internal charge pump, no reset GPIO.
+	  Confirm actual controller, geometry, address and voltage before enabling.
+
+config LCD_PCF8574_PROFILE
+	bool "Enable an explicitly verified HD44780 / PCF8574 backpack profile"
+	default n
+	depends on !LCD_SSD1306_PROFILE
+	help
+	  Enable only after confirming the LCD controller, supply/logic levels,
+	  expander address, pin mapping, geometry and physical I2C wiring.
+
+config LCD_COLUMNS
+	int "LCD columns"
+	default 16
+	range 1 20
+
+config LCD_ROWS
+	int "LCD rows (driver supports 1, 2, or 4)"
+	default 2
+	range 1 4
+
+config LCD_I2C_ADDRESS
+	hex "Explicitly configured I2C display address"
+	default 0x27
+	range 0x20 0x3f
+
+config LCD_RS_BIT
+	int "Expander bit for RS"
+	default 0
+	range 0 7
+config LCD_RW_BIT
+	int "Expander bit for RW (always driven LOW)"
+	default 1
+	range 0 7
+config LCD_ENABLE_BIT
+	int "Expander bit for Enable"
+	default 2
+	range 0 7
+config LCD_BACKLIGHT_BIT
+	int "Expander bit for backlight"
+	default 3
+	range 0 7
+config LCD_DB4_BIT
+	int "Expander bit for DB4"
+	default 4
+	range 0 7
+config LCD_DB5_BIT
+	int "Expander bit for DB5"
+	default 5
+	range 0 7
+config LCD_DB6_BIT
+	int "Expander bit for DB6"
+	default 6
+	range 0 7
+config LCD_DB7_BIT
+	int "Expander bit for DB7"
+	default 7
+	range 0 7
+config LCD_BACKLIGHT_ACTIVE_HIGH
+	bool "Backlight is active HIGH"
+	default y
+
+config LCD_LEGACY_DFU
+	bool "Permit reset entry into verified Adafruit 0.9.1 legacy BLE DFU"
+	default n
+	help
+	  Only enable after verifying this board's preserved S140/Adafruit OTA
+	  bootloader and recovery path. This enables a reset trigger, not an OTA
+	  transfer implementation, signatures, rollback, or MCUboot support.
+
+source "Kconfig.zephyr"

@@ -1,0 +1,8 @@
+local.conf
+.local-conf-*
+
+# These are host-test headers, not an installed Zephyr SDK.
+!tests/kit_mock/zephyr/
+!tests/kit_mock/zephyr/**
+!tests/transport_mock/zephyr/
+!tests/transport_mock/zephyr/**

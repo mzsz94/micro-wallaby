@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: Apache-2.0
+mainmenu "NU87 Wi-Fi to NU40 BLE LCD gateway"
+source "Kconfig.zephyr"
+menu "LCD gateway settings"
+choice GATEWAY_DISPLAY_PROTOCOL
+	prompt "NU40 display firmware protocol"
+	default GATEWAY_LCD_LEGACY
+config GATEWAY_LCD_LEGACY
+	bool "MZSZ-LCD / verified S140 legacy DFU"
+config GATEWAY_NU40_KIT
+	bool "NU40-KIT-DISPLAY text protocol (no power or OTA)"
+endchoice
+config GATEWAY_PEER_ADDRESS
+	string "Explicit NU40 LCD Bluetooth address (AA:BB:CC:DD:EE:FF)"
+	default ""
+config GATEWAY_PEER_ADDRESS_TYPE
+	string "LCD Bluetooth address type (random or public)"
+	default "random"
+config GATEWAY_DFU_ADDRESS
+	string "Explicit bootloader Bluetooth address; empty requires same LCD address"
+	default ""
+config GATEWAY_DFU_ADDRESS_TYPE
+	string "Bootloader Bluetooth address type (random or public)"
+	default "random"
+config GATEWAY_WIFI_SSID
+	string "Isolated test Wi-Fi SSID"
+	default ""
+config GATEWAY_WIFI_PSK
+	string "Disposable test Wi-Fi PSK"
+	default ""
+choice GATEWAY_WIFI_SECURITY
+	prompt "Wi-Fi security"
+	default GATEWAY_WIFI_SECURITY_OPEN
+config GATEWAY_WIFI_SECURITY_OPEN
+	bool "Open isolated test network"
+config GATEWAY_WIFI_SECURITY_PSK
+	bool "WPA2-PSK isolated test network"
+endchoice
+config GATEWAY_ALLOW_INSECURE_TEST_PSK
+	bool "Acknowledge the AmebaD unverified entropy source for test WPA2"
+	depends on GATEWAY_WIFI_SECURITY_PSK
+	default n
+config GATEWAY_WIFI_CONNECT_DELAY_MS
+	int
+	default 500
+config GATEWAY_WIFI_CONNECT_RETRY_SECONDS
+	int
+	default 10
+config GATEWAY_WIFI_CONNECT_TIMEOUT_SECONDS
+	int
+	default 60
+config GATEWAY_WIFI_WORK_STACK_SIZE
+	int
+	default 4096
+config GATEWAY_WIFI_WORK_PRIORITY
+	int
+	default 7
+config GATEWAY_TIMER_STACK_SIZE
+	int "Vendor software timer daemon stack size"
+	range 2048 16384
+	default 6144
+config GATEWAY_HTTP_PORT
+	int "HTTP port"
+	range 1 65535
+	default 8080
+config GATEWAY_API_TOKEN
+	string "Local API bearer token; empty disables mutating HTTP requests"
+	default ""
+config GATEWAY_LOG_LEVEL
+	int
+	range 0 4
+	default 3
+endmenu

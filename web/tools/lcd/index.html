@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NU · Wireless Display</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
+<body><main>
+<header><a class="brand" href="/">NU<span> / Wireless Display</span></a><span id="connection" class="badge">연결 확인 중</span></header>
+<section class="intro"><span class="eyebrow">NU87 WI-FI → BLE → NU40</span><h1>작은 화면을,<br>무선으로 다루세요.</h1><p>표시할 내용을 바로 보내고, 새 펌웨어로 기능을 업데이트합니다.</p></section>
+<section class="network-card" aria-labelledby="network-title">
+<div class="section-title"><h2 id="network-title">무선 연결 상태</h2><span class="tag">같은 Wi-Fi에서 연결</span></div>
+<ol class="connection-path">
+<li id="bridge-hop" data-state="pending"><span class="hop-label">01 · 맥북</span><strong id="bridge-status">로컬 서버 확인 중</strong><span id="bridge-detail">이 제어 화면과 통신을 확인합니다.</span></li>
+<li id="wifi-hop" data-state="pending"><span class="hop-label">02 · NU87 Wi-Fi</span><strong id="wifi-status">연결 확인 중</strong><span id="wifi-detail">게이트웨이 응답과 IP를 확인합니다.</span></li>
+<li id="ble-hop" data-state="pending"><span class="hop-label">03 · NU40 Bluetooth</span><strong id="ble-status">연결 확인 중</strong><span id="ble-detail">화면 제어 앱의 응답을 확인합니다.</span></li>
+</ol>
+<p id="network-hint" class="network-hint" role="status">맥북과 NU87은 같은 Wi-Fi에 연결하고, NU40은 NU87과 Bluetooth로 연결합니다.</p>
+<div class="peer-controls"><label for="peer-select">연결할 NU40</label><div class="peer-actions"><select id="peer-select" disabled><option value="">NU87 검색 후 주소를 선택하세요</option></select><button id="scan-peers" disabled>NU87에서 보드 검색</button><button id="connect-peer" disabled>선택한 보드 연결</button></div><p class="hint">이 목록은 NU87이 수신한 BLE 광고를 보여줍니다. 맥북의 직접 BLE 검색 결과는 별도로 확인합니다.</p><p id="peer-result" class="hint" role="status">NU87에서 검색한 뒤 보드의 이름과 주소를 선택해 주세요.</p></div>
+</section>
+<div class="grid"><section class="card display-card"><div class="section-title"><h2>실시간 화면</h2><span class="tag" id="geometry">화면 크기 확인 전</span></div>
+<div class="screen-frame"><div class="screen" role="img" aria-label="입력 내용 미리보기"><pre id="preview">Hello, NU40!
+Wireless display
+Wi-Fi + BLE
+Ready to connect</pre></div><div class="screen-caption">입력 미리보기 · 실제 전송 결과는 아래에서 확인</div></div>
+<label for="display-text">표시할 텍스트</label><textarea id="display-text" rows="4" spellcheck="false" maxlength="84">Hello, NU40!
+Wireless display
+Wi-Fi + BLE
+Ready to connect</textarea>
+<div class="hint" id="text-hint">영문·숫자·기호 지원. 연결 후 화면 크기에 맞춰 검사합니다.</div>
+<div class="actions"><button id="send" class="primary" disabled>화면으로 보내기 <span>↗</span></button><button id="power-on" disabled>켜기</button><button id="power-off" disabled>끄기</button></div>
+<p id="capability-note" class="hint"></p>
+<label class="toggle"><input id="live" type="checkbox" disabled> 입력하면 자동 전송 <span>입력 종료 후 600ms</span></label>
+<p id="display-result" role="status">보드 연결을 기다리고 있습니다.</p></section>
+<section class="card ota-card"><div class="section-title"><h2>펌웨어 업데이트</h2><span class="tag">NU40 OTA</span></div>
+<p class="description" id="ota-description">LCD 앱이 설치된 NU40에 업데이트 파일을 Wi-Fi와 BLE로 전송합니다. 처음 설치할 때는 부트로더 연결이 필요합니다.</p>
+<label for="package" class="upload"><span class="upload-icon">↑</span><strong>업데이트 파일 선택</strong><span>NU40 LCD용 .zip 패키지</span><input id="package" type="file" accept=".zip,application/zip"></label>
+<dl class="file-info"><div><dt>파일</dt><dd id="file-name">선택되지 않음</dd></div><div><dt>검사 결과</dt><dd id="file-result">대기 중</dd></div><div><dt>버전 / 크기</dt><dd id="file-version">—</dd></div></dl>
+<button id="update" class="primary wide" disabled>검사한 펌웨어로 업데이트</button>
+<div class="progress-title"><span id="ota-phase">업데이트 대기</span><span id="percent">0%</span></div><progress id="progress" max="100" value="0"></progress>
+<button id="cancel" class="quiet" disabled>전송 중단 요청</button><p id="ota-result" role="status"></p>
+<aside>업데이트 중 두 보드의 전원을 유지해 주세요. 전송 중단 시 USB 복구가 필요할 수 있습니다. 이 개발 버전은 분리된 테스트 Wi-Fi에서 사용합니다.</aside>
+</section></div>
+<footer><span id="route">게이트웨이 주소를 기다리는 중</span><a href="http://127.0.0.1:5178/imu">IMU 대시보드 ↗</a></footer>
+</main></body></html>

@@ -25,6 +25,24 @@ NU87은 I2C 통신 수정, 맥북 측 자이로 보정, 바닥 자세 기준 및
 SDK·의존성·펌웨어 바이너리와 원본 연속 로그는 포함하지 않으며 제공된 스크립트로
 환경을 구성하고 다시 빌드합니다.
 
+## NU87 Wi-Fi / NU40-KIT BLE 화면 제어
+
+`bugfix/zephyr-ble` 브랜치는 NU87 Wi-Fi 게이트웨이에서 기존 NU40-KIT-DISPLAY 앱으로
+문자열을 전송합니다. 테스트 Wi-Fi 연결, 인증 HTTP 응답, NU87↔NU40 BLE 연결,
+웹 경유 텍스트 전송과 NU40의 성공 ACK를 실기기로 확인했습니다.
+로컬 제어 화면은 `python3 web/tools/lcd_bridge.py`로 실행합니다.
+현재 KIT 앱은 OTA를 지원하지 않으며 NU40 펌웨어는 변경하지 않았습니다.
+
+별도의 `nu40_ble_lcd` 앱과 Adafruit/S140 레거시 DFU 예제도 포함합니다.
+이 예제는 현재 KIT 앱과 프로토콜·플래시 레이아웃이 다르며, OTA 전송은 실기기 미검증입니다.
+타이머 래퍼 수정은 [Zephyr PR #121773](https://github.com/zephyrproject-rtos/zephyr/pull/121773)로
+제출했으며, HAL 공존 보고 보완은 이 저장소의 앱 호환 계층에만 반영되어 있습니다.
+
+- [구성, 빌드, 제어 화면과 OTA 실행 안내](docs/WIRELESS-LCD.md)
+- [현재 NU40-KIT-DISPLAY 앱과 연결](firmware/nu87_lcd_gateway/KIT-DISPLAY.md)
+- [NU40 화면 펌웨어와 디스플레이 프로필](firmware/nu40_ble_lcd/README.md)
+- [레거시 DFU 전송 구현과 복구 제한](firmware/wireless_lcd_common/dfu/README.md)
+
 ## 확인된 보드 상태
 
 - 보드: NUCODE NU40-DK / nRF52840
