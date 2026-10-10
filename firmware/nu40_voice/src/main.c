@@ -309,6 +309,7 @@ int main(void)
 	struct received_text message;
 	atomic_val_t seen_revision = -1;
 	int64_t report_at = 0;
+	uint32_t voice_revision = 0;
 	int ret;
 
 	(void)gpio_pin_configure_dt(&amp, GPIO_OUTPUT_INACTIVE);
@@ -351,6 +352,10 @@ int main(void)
 		}
 		if (k_msgq_get(&messages, &message, K_MSEC(20)) == 0) {
 			process_message(&message);
+		}
+		char voice_text[85];
+		if (voice_display_status(&voice_revision, voice_text, sizeof(voice_text))) {
+			(void)draw_text(voice_text);
 		}
 		poll_console(console);
 		if (k_uptime_get() >= report_at) {

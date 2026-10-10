@@ -67,7 +67,7 @@ def main() -> int:
     parser.add_argument("--key", type=Path, required=True, help="private persistent P256 signing key; never commit")
     parser.add_argument("--pairing-code-file", type=Path, required=True, help="private six-digit BLE code shared with NU87")
     parser.add_argument("--create-secrets", action="store_true", help="create missing private key/code once; preserve existing secrets")
-    parser.add_argument("--version", default="0.1.0")
+    parser.add_argument("--version", default="0.1.1")
     parser.add_argument("--overlay", type=Path, help="additional verified hardware pin overlay")
     args = parser.parse_args()
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:\+\d+)?", args.version):
