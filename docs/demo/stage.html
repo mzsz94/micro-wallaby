@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Military Wallaby — scenario reel</title>
+<link rel="stylesheet" href="/demo/stage.css">
+<body>
+  <header>
+    <div class="brand"><b>w.</b><div>militaryWallaby<small>VOICE-FIRST TACTICAL AI</small></div></div>
+    <div class="local"><i></i> LOCAL PROCESSING <span>훈련 시나리오</span></div>
+  </header>
+  <section class="heading"><div><p id="eyebrow"></p><h1 id="title"></h1></div><span id="scene-number"></span></section>
+  <main>
+    <section class="workflow">
+      <div class="utterance"><div class="row"><span id="input-label">발화 자막 · 입력 연출</span><div class="wave" id="wave"></div></div><p id="transcript"></p></div>
+      <div class="response" id="response"><div class="row"><span id="result-label">로컬 응답</span><b id="result-badge"></b></div><div id="result"></div><p class="note" id="note"></p></div>
+    </section>
+    <section class="robot-view"><div class="row"><span>WALLABY / MOTION LAB</span><b id="robot-state">IDLE</b></div><iframe id="robot-frame" src="/simulation/" title="실제 Motion Lab의 가상 로봇과 이동 경로"></iframe><p id="robot-caption">가상 로봇 · 실제 모터 제어 없음</p></section>
+  </main>
+  <div class="pipeline"><span id="step-0"></span><i>→</i><span id="step-1"></span><i>→</i><span id="step-2"></span><div class="progress"><b id="progress"></b></div></div>
+  <footer>음성 입력은 자막 연출 · 응답은 실제 로컬 규칙 엔진 · 동작은 시뮬레이션<span>외부 AI API 사용 없음</span></footer>
+  <script type="module" src="/demo/stage.mjs"></script>
+</body>
+</html>

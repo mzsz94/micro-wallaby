@@ -2,6 +2,10 @@
 
 ## Military Wallaby · 밀리터리 왈라비
 
+**[상황별 데모 GIF·MP4 보기](docs/demo/README.md)** — 교범 조회, 상황 보고, 지시 정리,
+훈련 경고 시 정지를 48초로 보여 줍니다. 음성 입력은 자막 연출이며 실제 로컬 응답과
+Motion Lab 시뮬레이션을 사용합니다.
+
 `test/military-wallaby`는 **NU40DK 컨트롤 타워의 PDM 마이크 → BLE → NU87 Tiny 왈라비
 → Wi-Fi → HostPC 로컬 Whisper·LLM 서버 → NU87 명령 수락 → Motion Lab 동작**을
 연결하는 미니 프로젝트입니다. 음성 질의, 상황 보고 요약·SALUTE 변환, 명령 정리,

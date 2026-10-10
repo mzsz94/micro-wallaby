@@ -1,0 +1,62 @@
+{
+  "source_base": "test/military-wallaby @ 7d8d4bd",
+  "resolution": [
+    1120,
+    630
+  ],
+  "fps": 8,
+  "external_browser_requests": [],
+  "browser_errors": [],
+  "verification": [
+    "real local API responses",
+    "report persisted to isolated SQLite",
+    "two orders with unknown second deadline",
+    "motion before warning; zero velocity after warning",
+    "movement rejected while alert latched",
+    "warning clear leaves robot idle"
+  ],
+  "boundaries": {
+    "speech_input": "captioned text; no STT performance claim",
+    "response": "local rules and evidence retrieval; no LLM model used",
+    "knowledge": "development training examples, not official military manuals",
+    "robot": "Motion Lab simulation; no physical motor or sensor verification",
+    "gif_audio": false
+  },
+  "gifs": [
+    {
+      "file": "01-manual-query.gif",
+      "bytes": 92796,
+      "frames": 96,
+      "duration_ms": 12010,
+      "distinct_frames": 96
+    },
+    {
+      "file": "02-situation-report.gif",
+      "bytes": 112662,
+      "frames": 96,
+      "duration_ms": 12010,
+      "distinct_frames": 96
+    },
+    {
+      "file": "03-organize-orders.gif",
+      "bytes": 95826,
+      "frames": 96,
+      "duration_ms": 12010,
+      "distinct_frames": 96
+    },
+    {
+      "file": "04-warning-stop.gif",
+      "bytes": 103298,
+      "frames": 96,
+      "duration_ms": 12010,
+      "distinct_frames": 96
+    },
+    {
+      "file": "military-wallaby-overview.gif",
+      "bytes": 316674,
+      "frames": 384,
+      "duration_ms": 48010,
+      "distinct_frames": 384
+    }
+  ]
+}
