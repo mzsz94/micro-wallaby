@@ -1,0 +1,24 @@
+name: Military Wallaby
+on:
+  push:
+    paths: ['voice_tactical/**', 'simulation/**', 'firmware/nu40_voice/**', 'firmware/voice_common/**', 'firmware/nu87_lcd_gateway/**', '.github/workflows/military-wallaby.yml']
+  pull_request:
+    paths: ['voice_tactical/**', 'simulation/**', 'firmware/nu40_voice/**', 'firmware/voice_common/**', 'firmware/nu87_lcd_gateway/**', '.github/workflows/military-wallaby.yml']
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s voice_tactical/tests -v
+      - run: node --test simulation/*.test.mjs voice_tactical/web/*.test.mjs
+      - run: bash firmware/nu87_lcd_gateway/tests/run_kit_tests.sh
+      - run: python -m unittest discover -s firmware/voice_common/tests -v
+      - run: python -m unittest discover -s firmware/nu87_lcd_gateway/tests -p 'test_*.py' -v
+      - run: python -m pip install intelhex==2.3.0
+      - run: python -m unittest discover -s firmware/nu40_voice/tests -v

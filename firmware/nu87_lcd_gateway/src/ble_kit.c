@@ -12,6 +12,10 @@
 #include <zephyr/logging/log.h>
 #include "gateway_link.h"
 #include "gateway_kit_protocol.h"
+#include "gateway_audio.h"
+#include "gateway_smp.h"
+#include "gateway_alarm.h"
+#include "gateway_robot.h"
 
 LOG_MODULE_REGISTER(gateway_kit, CONFIG_GATEWAY_LOG_LEVEL);
 extern int wifi_is_running(unsigned char wlan_idx);
@@ -23,6 +27,14 @@ extern int wifi_is_running(unsigned char wlan_idx);
 static struct bt_uuid_128 service_uuid = BT_UUID_INIT_128(BLE_DISPLAY_UUID_SERVICE_VAL);
 static struct bt_uuid_128 text_uuid = BT_UUID_INIT_128(BLE_DISPLAY_UUID_TEXT_VAL);
 static struct bt_uuid_128 ack_uuid = BT_UUID_INIT_128(BLE_DISPLAY_UUID_ACK_VAL);
+static struct bt_uuid_128 audio_ctrl_uuid = BT_UUID_INIT_128(GATEWAY_AUDIO_CTRL_UUID_VAL);
+static struct bt_uuid_128 audio_data_uuid = BT_UUID_INIT_128(GATEWAY_AUDIO_DATA_UUID_VAL);
+static struct gateway_audio_ring audio_ring;
+static struct bt_gatt_subscribe_params audio_subscription;
+static struct bt_gatt_exchange_params audio_mtu_params;
+static uint16_t audio_ctrl_handle, audio_data_handle, audio_end, audio_ccc_handle;
+static bool audio_bad, audio_descriptor, audio_subscribe_active, audio_subscription_live, audio_mtu_active;
+static int audio_setup_error;
 
 struct candidate {
 	bt_addr_le_t address;
@@ -315,6 +327,11 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		closed = true;
 		state.ble_connected = state.lcd_ready = false;
 		state.last_error = -ENOTCONN;
+		gateway_smp_disconnected(conn);
+		gateway_alarm_disconnected(conn);
+		(void)gateway_robot_command("stop");
+		audio_ring.available = audio_ring.running = false;
+		audio_ring.queued = 0; audio_ring.error = -ENOTCONN;
 		if (command_pending && !ack_received) {
 			command_error = -ENOTCONN;
 			command_pending = false;
@@ -345,7 +362,16 @@ static uint8_t discovered(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 		if (ack_handle != 0 && attr->handle > ack_handle && ack_end == service_end) {
 			ack_end = attr->handle - 1;
 		}
-		if (bt_uuid_cmp(ch->uuid, &text_uuid.uuid) == 0) {
+		if (audio_data_handle != 0 && attr->handle > audio_data_handle && audio_end == service_end) {
+			audio_end = attr->handle - 1;
+		}
+		if (bt_uuid_cmp(ch->uuid, &audio_ctrl_uuid.uuid) == 0) {
+			if (audio_ctrl_handle != 0 || !(ch->properties & BT_GATT_CHRC_WRITE)) { audio_bad = true; }
+			audio_ctrl_handle = ch->value_handle;
+		} else if (bt_uuid_cmp(ch->uuid, &audio_data_uuid.uuid) == 0) {
+			if (audio_data_handle != 0 || !(ch->properties & BT_GATT_CHRC_NOTIFY)) { audio_bad = true; }
+			audio_data_handle = ch->value_handle;
+		} else if (bt_uuid_cmp(ch->uuid, &text_uuid.uuid) == 0) {
 			if (text_handle != 0 || !(ch->properties & BT_GATT_CHRC_WRITE)) { setup_error = -EPROTO; }
 			text_handle = ch->value_handle;
 		} else if (bt_uuid_cmp(ch->uuid, &ack_uuid.uuid) == 0) {
@@ -353,7 +379,8 @@ static uint8_t discovered(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			ack_handle = ch->value_handle;
 		}
 	} else if (params->type == BT_GATT_DISCOVER_DESCRIPTOR) {
-		ccc_handle = attr->handle;
+		if (audio_descriptor) { audio_ccc_handle = attr->handle; }
+		else { ccc_handle = attr->handle; }
 		discovery_active = false;
 		result = BT_GATT_ITER_STOP;
 	}
@@ -427,14 +454,118 @@ static int discover_range(struct bt_conn *conn, uint8_t type, const struct bt_uu
 	return rc;
 }
 
+static uint8_t audio_notification(struct bt_conn *conn, struct bt_gatt_subscribe_params *params,
+				 const void *data, uint16_t length)
+{
+	ARG_UNUSED(params);
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (conn != peer) { k_spin_unlock(&lock, key); return BT_GATT_ITER_STOP; }
+	if (data == NULL) {
+		audio_subscribe_active = audio_subscription_live = false;
+		audio_ring.available = audio_ring.running = false;
+		audio_ring.queued = 0; audio_ring.error = -ENOTCONN;
+		k_spin_unlock(&lock, key);
+		k_sem_give(&setup_done);
+		return BT_GATT_ITER_STOP;
+	}
+	if (!closed && audio_subscription_live) { (void)gateway_audio_push(&audio_ring, data, length); }
+	k_spin_unlock(&lock, key);
+	return BT_GATT_ITER_CONTINUE;
+}
+
+static void audio_subscribed(struct bt_conn *conn, uint8_t error, struct bt_gatt_subscribe_params *params)
+{
+	ARG_UNUSED(params);
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (conn == peer) {
+		audio_subscribe_active = false;
+		audio_setup_error = closed ? -ENOTCONN : error == 0 ? 0 : -EPROTO;
+		if (error != 0) { audio_subscription_live = false; }
+		k_sem_give(&setup_done);
+	}
+	k_spin_unlock(&lock, key);
+}
+
+static void audio_mtu_exchanged(struct bt_conn *conn, uint8_t error, struct bt_gatt_exchange_params *params)
+{
+	ARG_UNUSED(params);
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (conn == peer) {
+		audio_mtu_active = false;
+		audio_setup_error = closed ? -ENOTCONN : error == 0 ? 0 : -EPROTO;
+		k_sem_give(&setup_done);
+	}
+	k_spin_unlock(&lock, key);
+}
+
+/* Optional setup never changes LCD readiness. Missing audio characteristics,
+ * insufficient MTU and subscribe failure leave the existing display usable. */
+static int setup_audio(struct bt_conn *conn)
+{
+	if (audio_bad || audio_ctrl_handle == 0 || audio_data_handle == 0 || audio_data_handle >= audio_end) {
+		return -ENOTSUP;
+	}
+	audio_descriptor = true;
+	int rc = discover_range(conn, BT_GATT_DISCOVER_DESCRIPTOR, BT_UUID_GATT_CCC, audio_data_handle + 1, audio_end);
+	if (rc != 0) { return rc; }
+	if (audio_ccc_handle == 0) { return -ENOENT; }
+	if (bt_gatt_get_mtu(conn) < GATEWAY_AUDIO_MIN_MTU) {
+		k_sem_reset(&setup_done);
+		audio_mtu_params.func = audio_mtu_exchanged;
+		k_spinlock_key_t key = k_spin_lock(&lock);
+		audio_setup_error = 0; audio_mtu_active = true;
+		k_spin_unlock(&lock, key);
+		rc = bt_gatt_exchange_mtu(conn, &audio_mtu_params);
+		if (rc != 0) {
+			key = k_spin_lock(&lock); audio_mtu_active = false; k_spin_unlock(&lock, key);
+		} else if (k_sem_take(&setup_done, K_MSEC(KIT_SETUP_MS)) != 0) { return -ETIMEDOUT; }
+		key = k_spin_lock(&lock);
+		int error = audio_setup_error;
+		k_spin_unlock(&lock, key);
+		if (error != 0) { return error; }
+	}
+	if (bt_gatt_get_mtu(conn) < GATEWAY_AUDIO_MIN_MTU) { return -EMSGSIZE; }
+	k_sem_reset(&setup_done);
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	memset(&audio_subscription, 0, sizeof(audio_subscription));
+	audio_subscription.notify = audio_notification;
+	audio_subscription.subscribe = audio_subscribed;
+	audio_subscription.value_handle = audio_data_handle;
+	audio_subscription.ccc_handle = audio_ccc_handle;
+	audio_subscription.value = BT_GATT_CCC_NOTIFY;
+	atomic_set_bit(audio_subscription.flags, BT_GATT_SUBSCRIBE_FLAG_VOLATILE);
+	audio_subscribe_active = audio_subscription_live = true;
+	audio_setup_error = 0;
+	k_spin_unlock(&lock, key);
+	rc = bt_gatt_subscribe(conn, &audio_subscription);
+	if (rc != 0) {
+		key = k_spin_lock(&lock);
+		audio_subscribe_active = audio_subscription_live = false;
+		k_spin_unlock(&lock, key);
+		return rc;
+	}
+	if (k_sem_take(&setup_done, K_MSEC(KIT_SETUP_MS)) != 0) { return -ETIMEDOUT; }
+	key = k_spin_lock(&lock);
+	rc = (closed || !audio_subscription_live) ? -ENOTCONN : audio_setup_error;
+	audio_ring.available = rc == 0;
+	k_spin_unlock(&lock, key);
+	return rc;
+}
+
 static int setup_peer(struct bt_conn *conn)
 {
 	service_start = service_end = text_handle = ack_handle = ccc_handle = 0;
+	audio_ctrl_handle = audio_data_handle = audio_ccc_handle = 0;
+	audio_bad = audio_descriptor = false;
+	k_spinlock_key_t audio_key = k_spin_lock(&lock);
+	audio_ring.available = audio_ring.running = false;
+	audio_ring.queued = 0; audio_ring.error = -ENOTSUP;
+	k_spin_unlock(&lock, audio_key);
 	int rc = discover_range(conn, BT_GATT_DISCOVER_PRIMARY, &service_uuid.uuid,
 		BT_ATT_FIRST_ATTRIBUTE_HANDLE, BT_ATT_LAST_ATTRIBUTE_HANDLE);
 	if (rc != 0) { return rc; }
 	if (service_start == 0 || service_start > service_end) { return -ENOENT; }
-	ack_end = service_end;
+	ack_end = audio_end = service_end;
 	rc = discover_range(conn, BT_GATT_DISCOVER_CHARACTERISTIC, NULL, service_start, service_end);
 	if (rc != 0) { return rc; }
 	if (text_handle == 0 || ack_handle == 0 || ack_handle >= ack_end) { return -ENOENT; }
@@ -479,7 +610,8 @@ static bool cleanup_peer(struct bt_conn *conn)
 	while (true) {
 		k_spinlock_key_t key = k_spin_lock(&lock);
 		bool done = closed && !discovery_active && !subscribe_active &&
-			!subscription_live && !write_active;
+			!subscription_live && !write_active && !audio_subscribe_active &&
+			!audio_subscription_live && !audio_mtu_active && gateway_smp_drained() && gateway_alarm_drained();
 		k_spin_unlock(&lock, key);
 		if (done) { return true; }
 		if (k_uptime_get() >= deadline) { return false; }
@@ -561,6 +693,8 @@ static void initialize_controller_when_ready(void)
 	/* Vendor HCI initialization can block. Keep it off the main HTTP thread,
 	 * and never start an overlapping or automatic second enable attempt. */
 	LOG_INF("Starting NU87 Bluetooth controller after Wi-Fi IPv4 readiness");
+	int auth_rc = gateway_smp_auth_init();
+	if (auth_rc != 0) { set_error(auth_rc); return; }
 	gateway_radio_diagnostics("before_bt_enable");
 	int rc = bt_enable(NULL);
 	gateway_radio_diagnostics("after_bt_enable");
@@ -626,7 +760,16 @@ static void link_thread(void *a, void *b, void *c)
 		}
 		k_spin_unlock(&lock, key);
 		if (rc == 0) { rc = setup_peer(conn); }
-		if (rc == 0) { LOG_INF("NU40-KIT-DISPLAY ready (selected peer, ACK subscribed)"); }
+		if (rc == 0) {
+			LOG_INF("NU40-KIT-DISPLAY ready (selected peer, ACK subscribed)");
+			int audio_rc = setup_audio(conn);
+			key = k_spin_lock(&lock); audio_ring.error = audio_rc; k_spin_unlock(&lock, key);
+			LOG_INF("Optional NU40 microphone setup result %d", audio_rc);
+			int alarm_rc = gateway_alarm_prepare(conn);
+			LOG_INF("Optional NU40 alarm setup result %d", alarm_rc);
+			int smp_rc = gateway_smp_prepare(conn);
+			LOG_INF("Optional NU40 SMP setup result %d", smp_rc);
+		}
 		while (rc == 0) {
 			(void)k_sem_take(&link_event, K_MSEC(500));
 			key = k_spin_lock(&lock);
@@ -662,7 +805,7 @@ static void written(struct bt_conn *conn, uint8_t error, struct bt_gatt_write_pa
 	k_sem_give(&write_done);
 }
 
-static int send_fragment(struct bt_conn *conn, const uint8_t *frame, size_t length, int64_t deadline)
+static int send_to_handle(struct bt_conn *conn, uint16_t handle, const uint8_t *frame, size_t length, int64_t deadline)
 {
 	int64_t remaining = deadline - k_uptime_get();
 	if (remaining <= 0) { return -ETIMEDOUT; }
@@ -672,7 +815,7 @@ static int send_fragment(struct bt_conn *conn, const uint8_t *frame, size_t leng
 	if (write_active) { k_spin_unlock(&lock, key); return -EBUSY; }
 	memcpy(write_buffer, frame, length);
 	write_params = (struct bt_gatt_write_params) {
-		.func = written, .handle = text_handle, .data = write_buffer, .length = length,
+		.func = written, .handle = handle, .data = write_buffer, .length = length,
 	};
 	write_active = true;
 	write_error = -EINPROGRESS;
@@ -721,7 +864,7 @@ int gateway_display_text(const uint8_t *text, size_t length, int timeout_ms)
 		key = k_spin_lock(&lock);
 		final_chunk_submitted = ((size_t)chunk + 1) * BLE_DISPLAY_CHUNK >= length;
 		k_spin_unlock(&lock, key);
-		rc = send_fragment(conn, frame, frame_length, fragment_deadline);
+		rc = send_to_handle(conn, text_handle, frame, frame_length, fragment_deadline);
 		if (rc != 0) { break; }
 	}
 	if (rc == 0) {
@@ -773,3 +916,75 @@ int gateway_dfu_packet(const uint8_t *data, size_t len)
 void gateway_dfu_set_notify_callback(gateway_dfu_notify_fn callback, void *user)
 { ARG_UNUSED(callback); ARG_UNUSED(user); }
 void gateway_dfu_leave(void) {}
+
+int gateway_audio_status(char *json, size_t capacity)
+{
+	if (json == NULL || capacity == 0) { return -EINVAL; }
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	bool available = audio_ring.available && !closed, running = audio_ring.running;
+	uint32_t session = audio_ring.session, received = audio_ring.received, dropped = audio_ring.dropped;
+	size_t queued = audio_ring.queued;
+	int error = audio_ring.error;
+	k_spin_unlock(&lock, key);
+	int n = snprintf(json, capacity,
+		"{\"available\":%s,\"running\":%s,\"session\":%lu,\"received\":%lu,"
+		"\"dropped\":%lu,\"queued\":%u,\"error\":%d,\"sampleRate\":16000,\"codec\":\"ima-adpcm\"}",
+		available ? "true" : "false", running ? "true" : "false", (unsigned long)session,
+		(unsigned long)received, (unsigned long)dropped, (unsigned)queued, error);
+	return n < 0 || (size_t)n >= capacity ? -ENOSPC : n;
+}
+
+static int audio_control(bool start, uint32_t session)
+{
+	if (k_mutex_lock(&operation_lock, K_NO_WAIT) != 0) { return -EBUSY; }
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (start && gateway_smp_busy()) {
+		k_spin_unlock(&lock, key); k_mutex_unlock(&operation_lock); return -EBUSY;
+	}
+	if (peer == NULL || closed || !audio_ring.available) {
+		k_spin_unlock(&lock, key); k_mutex_unlock(&operation_lock); return -ENOTSUP;
+	}
+	if (write_active || (start && audio_ring.running)) {
+		k_spin_unlock(&lock, key); k_mutex_unlock(&operation_lock); return -EBUSY;
+	}
+	if (start && (session == 0 || session == audio_ring.session)) {
+		k_spin_unlock(&lock, key); k_mutex_unlock(&operation_lock); return -EINVAL;
+	}
+	struct bt_conn *conn = bt_conn_ref(peer);
+	if (start) { gateway_audio_reset(&audio_ring, session); }
+	else { session = audio_ring.session; audio_ring.running = false; }
+	k_spin_unlock(&lock, key);
+	uint8_t control[6] = { 1, start ? 1 : 0, session, session >> 8, session >> 16, session >> 24 };
+	int rc = send_to_handle(conn, audio_ctrl_handle, control, sizeof(control), k_uptime_get() + 4000);
+	key = k_spin_lock(&lock);
+	audio_ring.error = rc;
+	if (rc != 0) { audio_ring.running = false; audio_ring.queued = 0; }
+	k_spin_unlock(&lock, key);
+	bt_conn_unref(conn);
+	k_mutex_unlock(&operation_lock);
+	return rc;
+}
+
+int gateway_audio_start(uint32_t session) { return audio_control(true, session); }
+int gateway_audio_stop(void) { return audio_control(false, 0); }
+bool gateway_audio_available(void)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	bool available = audio_ring.available && !closed;
+	k_spin_unlock(&lock, key);
+	return available;
+}
+int gateway_audio_pause(void)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	bool running = audio_ring.running;
+	k_spin_unlock(&lock, key);
+	return running ? gateway_audio_stop() : 0;
+}
+size_t gateway_audio_chunk(uint8_t *data, size_t capacity)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	size_t size = gateway_audio_pop(&audio_ring, data, capacity);
+	k_spin_unlock(&lock, key);
+	return size;
+}

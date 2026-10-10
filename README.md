@@ -1,4 +1,28 @@
-# NU40-DK BLE 오늘의 성장 놀이
+# microWallaby
+
+## Military Wallaby · 밀리터리 왈라비
+
+`test/military-wallaby`는 **NU40DK 컨트롤 타워의 PDM 마이크 → BLE → NU87 Tiny 왈라비
+→ Wi-Fi → HostPC 로컬 Whisper·LLM 서버 → NU87 명령 수락 → Motion Lab 동작**을
+연결하는 미니 프로젝트입니다. 음성 질의, 상황 보고 요약·SALUTE 변환, 명령 정리,
+로컬 기록 검색을 제공합니다. BTN4로 폭발물 감지를 모사하면 NU40의 MAX98357A·스피커가
+경고음을 내고 NU87과 시뮬레이터가 경고 상태로 정지합니다.
+
+```sh
+python3 -m voice_tactical.server
+# http://127.0.0.1:8767
+```
+
+모델 없는 텍스트 시연부터 시작할 수 있습니다. NU40 마이크를 사용하려면 음성 펌웨어,
+로컬 Whisper·LLM 모델, NU87 연결 설정이 필요합니다. 새 NU40 펌웨어는 서명된 MCUboot
+이미지를 BLE SMP로 OTA 업데이트합니다. 기존 OLED 전용 앱에는 OTA 수신 기능이 없으므로
+초기 MCUboot 설치가 선행되어야 합니다.
+
+**[실행·음성 시연·보드 연결·OTA 안내](voice_tactical/README.md)** ·
+[NU40 음성 펌웨어](firmware/nu40_voice/README.md) ·
+[기존 동작 시뮬레이터](simulation/README.md)
+
+## NU40-DK BLE 오늘의 성장 놀이
 
 Apple Silicon(M1) Mac에서 IDE 없이 NU40-DK, LSM6DS3TR IMU, 터치 센서,
 Web Bluetooth 웹앱으로 0–5세 보호자 동반형 센서 놀이를 설계하고 실행하는

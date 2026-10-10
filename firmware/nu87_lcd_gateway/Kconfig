@@ -8,7 +8,7 @@ choice GATEWAY_DISPLAY_PROTOCOL
 config GATEWAY_LCD_LEGACY
 	bool "MZSZ-LCD / verified S140 legacy DFU"
 config GATEWAY_NU40_KIT
-	bool "NU40-KIT-DISPLAY text protocol (no power or OTA)"
+	bool "NU40-KIT-DISPLAY with optional voice and authenticated SMP"
 endchoice
 config GATEWAY_PEER_ADDRESS
 	string "Explicit NU40 LCD Bluetooth address (AA:BB:CC:DD:EE:FF)"
@@ -65,6 +65,10 @@ config GATEWAY_HTTP_PORT
 	default 8080
 config GATEWAY_API_TOKEN
 	string "Local API bearer token; empty disables mutating HTTP requests"
+	default ""
+config GATEWAY_NU40_PASSKEY
+	string "Private six-digit NU40 pairing passkey (empty disables SMP relay)"
+	depends on GATEWAY_NU40_KIT
 	default ""
 config GATEWAY_LOG_LEVEL
 	int

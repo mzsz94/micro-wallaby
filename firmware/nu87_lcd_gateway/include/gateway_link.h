@@ -5,6 +5,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "lcd_protocol.h"
+#if defined(CONFIG_GATEWAY_NU40_KIT)
+#include "gateway_audio.h"
+#include "gateway_smp.h"
+#include "gateway_alarm.h"
+#include "gateway_robot.h"
+#endif
 
 struct gateway_state {
 	bool wifi_connected;

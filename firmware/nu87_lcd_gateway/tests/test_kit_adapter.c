@@ -17,6 +17,17 @@ static bool mock_wifi_ready;
 static bool mock_radio_running;
 static unsigned mock_diagnostics_calls;
 static unsigned mock_coex_diagnostics_calls;
+static bool mock_smp_busy;
+static uint8_t mock_audio_error;
+void gateway_smp_disconnected(struct bt_conn *conn) { ARG_UNUSED(conn); }
+bool gateway_smp_drained(void) { return true; }
+bool gateway_smp_busy(void) { return mock_smp_busy; }
+int gateway_smp_prepare(struct bt_conn *conn) { ARG_UNUSED(conn); return -ENOTSUP; }
+int gateway_smp_auth_init(void) { return 0; }
+void gateway_alarm_disconnected(struct bt_conn *conn) { ARG_UNUSED(conn); }
+bool gateway_alarm_drained(void) { return true; }
+int gateway_alarm_prepare(struct bt_conn *conn) { ARG_UNUSED(conn); return -ENOTSUP; }
+int gateway_robot_command(const char *command) { assert(!strcmp(command, "stop")); return 0; }
 
 int wifi_is_running(unsigned char index) { ARG_UNUSED(index); return mock_radio_running; }
 int gateway_wifi_start(void) { return 0; }
@@ -44,6 +55,13 @@ int bt_conn_disconnect(struct bt_conn *conn, uint8_t reason)
 int bt_gatt_write(struct bt_conn *conn, struct bt_gatt_write_params *params)
 {
 	writes++;
+	if (params->handle == 15) {
+		assert(params->length == 6);
+		const uint8_t *control = params->data;
+		assert(control[0] == 1 && control[1] <= 1);
+		params->func(conn, mock_audio_error, params);
+		return 0;
+	}
 	assert(params->handle == 9);
 	assert(params->length >= 7 && params->length <= 20);
 	transferred += params->length - 6;
@@ -97,6 +115,10 @@ static void reset(enum delivery behavior)
 	delivery = behavior;
 	writes = disconnects = 0;
 	transferred = 0;
+	memset(&audio_ring, 0, sizeof(audio_ring));
+	audio_ctrl_handle = 15;
+	audio_subscribe_active = audio_subscription_live = audio_mtu_active = false;
+	mock_smp_busy = false; mock_audio_error = 0;
 	mock_wifi_ready = true;
 	mock_radio_running = true;
 	mock_scan_starts = mock_scan_stops = mock_enable_calls = 0;
@@ -465,8 +487,40 @@ static void test_scan_diagnostic_counters(void)
 	assert(gateway_scan_diagnostics(json, 0) == -EINVAL);
 }
 
+static void test_audio_control_and_disconnect(void)
+{
+	reset(ACK_FIRST);
+	assert(gateway_audio_start(17) == -ENOTSUP && writes == 0);
+	audio_ring.available = audio_subscription_live = true;
+	assert(gateway_audio_start(0) == -EINVAL && writes == 0);
+	assert(gateway_audio_start(17) == 0 && audio_ring.running && audio_ring.received == 0);
+	assert(gateway_audio_start(18) == -EBUSY && writes == 1);
+	uint8_t frame[176] = { 'W', 'A', 1, 0, 17 }, out[176];
+	assert(audio_notification(&peripheral, &audio_subscription, frame, sizeof(frame)) == BT_GATT_ITER_CONTINUE);
+	assert(audio_ring.received == 1 && audio_ring.queued == 1);
+	assert(gateway_audio_stop() == 0 && !audio_ring.running);
+	assert(gateway_audio_chunk(out, sizeof(out)) == 176 && memcmp(frame, out, 176) == 0);
+	assert(gateway_audio_start(17) == -EINVAL); /* Session IDs cannot be reused. */
+	assert(gateway_audio_start(18) == 0);
+	frame[4] = 18;
+	(void)audio_notification(&peripheral, &audio_subscription, frame, sizeof(frame));
+	disconnected(&peripheral, 19);
+	assert(!audio_ring.available && !audio_ring.running && audio_ring.queued == 0);
+	assert(gateway_audio_chunk(out, sizeof(out)) == 0);
+	(void)audio_notification(&peripheral, &audio_subscription, frame, sizeof(frame));
+	assert(audio_ring.queued == 0);
+	reset(ACK_FIRST); audio_ring.available = true; mock_audio_error = 14;
+	assert(gateway_audio_start(19) == -EIO && !audio_ring.running && !audio_ring.queued);
+	reset(ACK_FIRST); audio_ring.available = true; mock_smp_busy = true;
+	assert(gateway_audio_start(20) == -EBUSY && writes == 0);
+	mock_smp_busy = false;
+	audio_ctrl_handle = audio_data_handle = 0;
+	assert(setup_audio(&peripheral) == -ENOTSUP && state.lcd_ready);
+}
+
 int main(void)
 {
+	test_audio_control_and_disconnect();
 	test_ack_orders();
 	test_errors_and_timeouts();
 	test_fragmentation_and_validation();

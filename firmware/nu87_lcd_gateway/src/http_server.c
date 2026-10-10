@@ -42,6 +42,47 @@ static void handle(int fd, uint32_t source_ip)
 	}
 	if (!authenticated(request.bearer)) { respond(fd, 401, "unauthorized", 12, "text/plain"); return; }
 #if defined(CONFIG_GATEWAY_NU40_KIT)
+	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/robot/status") && !request.content_length) {
+		char result[256];
+		int n = gateway_robot_status(result, sizeof(result), false);
+		if (n < 0 || (size_t)n >= sizeof(result)) { respond(fd, 503, "robot unavailable", 17, "text/plain"); return; }
+		respond(fd, 200, result, (size_t)n, "application/json"); return;
+	}
+	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/alarm/status") && !request.content_length) {
+		char result[256];
+		int n = gateway_alarm_status(result, sizeof(result));
+		if (n < 0 || (size_t)n >= sizeof(result)) { respond(fd, 503, "alarm unavailable", 17, "text/plain"); return; }
+		respond(fd, 200, result, (size_t)n, "application/json"); return;
+	}
+	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/smp/status") && !request.content_length) {
+		const char *result = gateway_smp_available() ? "{\"available\":true}" : "{\"available\":false}";
+		respond(fd, 200, result, strlen(result), "application/json"); return;
+	}
+	if (!strcmp(request.method, "POST") && !strcmp(request.path, "/v1/smp")) {
+		/* Request and response storage is bounded and private to the serial
+		 * HTTP handler. No image policy or automatic boot command lives here. */
+		static uint8_t packet[GATEWAY_SMP_MAX], reply[GATEWAY_SMP_MAX];
+		if (request.content_length < 8 || request.content_length > sizeof(packet)) {
+			respond(fd, 400, "invalid SMP size", 16, "text/plain"); return;
+		}
+		if (http_read_before(fd, packet, request.content_length, deadline)) { return; }
+		int n = gateway_smp_transaction(packet, request.content_length, reply, sizeof(reply));
+		if (n < 0) { respond(fd, n == -EBUSY ? 409 : n == -ENOTSUP ? 503 : 422, "SMP relay failed", 16, "text/plain"); return; }
+		respond(fd, 200, reply, (size_t)n, "application/octet-stream"); return;
+	}
+	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/audio/status") && !request.content_length) {
+		char result[320];
+		int n = gateway_audio_status(result, sizeof(result));
+		if (n < 0 || (size_t)n >= sizeof(result)) { respond(fd, 503, "audio unavailable", 17, "text/plain"); return; }
+		respond(fd, 200, result, n, "application/json"); return;
+	}
+	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/audio/chunk") && !request.content_length) {
+		/* The HTTP listener is serial. Avoid putting this bounded drain buffer
+		 * on the main stack alongside vendor Wi-Fi send stack usage. */
+		static uint8_t audio[GATEWAY_AUDIO_FRAME_SIZE * GATEWAY_AUDIO_DRAIN_FRAMES];
+		size_t n = gateway_audio_chunk(audio, sizeof(audio));
+		respond(fd, 200, audio, n, "application/octet-stream"); return;
+	}
 	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/scan") && !request.content_length) {
 		/* Format directly into one buffer: diagnostics must not multiply the
 		 * main thread's peak stack usage with per-section temporary copies. */
@@ -88,8 +129,11 @@ static void handle(int fd, uint32_t source_ip)
 		struct gateway_state state; gateway_get_state(&state);
 		char ota[256], body[896]; gateway_ota_status(ota, sizeof(ota));
 #if defined(CONFIG_GATEWAY_NU40_KIT)
-		const char *capabilities = "\"protocol\":\"nu40-kit-display\",\"columns\":21,\"rows\":4,"
-			"\"capabilities\":{\"text\":true,\"power\":false,\"ota\":false}";
+		char capabilities[192];
+		snprintf(capabilities, sizeof(capabilities),
+			"\"protocol\":\"nu40-kit-display\",\"columns\":21,\"rows\":4,"
+			"\"capabilities\":{\"text\":true,\"power\":false,\"ota\":false,\"microphone\":%s,\"smp\":%s}",
+			gateway_audio_available() ? "true" : "false", gateway_smp_available() ? "true" : "false");
 #else
 		const char *capabilities = "\"protocol\":\"mzsz-lcd\",\"columns\":16,\"rows\":4,"
 			"\"capabilities\":{\"text\":true,\"power\":true,\"ota\":true}";
@@ -109,7 +153,38 @@ static void handle(int fd, uint32_t source_ip)
 	if (http_read_before(fd, body, request.content_length, deadline)) return;
 	int rc = -EINVAL;
 #if defined(CONFIG_GATEWAY_NU40_KIT)
-	if (!strcmp(request.path, "/v1/scan")) {
+	if (!strcmp(request.path, "/v1/robot/command") && request.content_length > 0 && request.content_length <= 7 &&
+	    memchr(body, '\0', request.content_length) == NULL) {
+		char command[8]; memcpy(command, body, request.content_length); command[request.content_length] = '\0';
+		rc = gateway_robot_command(command);
+		if (rc == 0) {
+			char result[256]; int n = gateway_robot_status(result, sizeof(result), true);
+			if (n < 0 || (size_t)n >= sizeof(result)) { respond(fd, 503, "robot unavailable", 17, "text/plain"); return; }
+			respond(fd, 200, result, (size_t)n, "application/json"); return;
+		}
+	} else if (!strcmp(request.path, "/v1/alarm") &&
+	    ((request.content_length == 2 && !memcmp(body, "on", 2)) ||
+	     (request.content_length == 3 && !memcmp(body, "off", 3)))) {
+		bool active = request.content_length == 2;
+		rc = gateway_alarm_set(active);
+		if (rc == 0) {
+			const char *result = active ? "{\"available\":true,\"active\":true,\"acknowledged\":true}" :
+				"{\"available\":true,\"active\":false,\"acknowledged\":true}";
+			respond(fd, 200, result, strlen(result), "application/json"); return;
+		}
+	} else if (!strcmp(request.path, "/v1/audio/start") && request.content_length > 0 && request.content_length <= 10) {
+		uint32_t session = 0;
+		bool valid = true;
+		for (size_t i = 0; i < request.content_length; i++) {
+			if (body[i] < '0' || body[i] > '9' || session > (UINT32_MAX - (body[i] - '0')) / 10) {
+				valid = false; break;
+			}
+			session = session * 10 + (body[i] - '0');
+		}
+		if (valid && session != 0) { rc = gateway_audio_start(session); }
+	} else if (!strcmp(request.path, "/v1/audio/stop") && request.content_length == 4 && !memcmp(body, "stop", 4)) {
+		rc = gateway_audio_stop();
+	} else if (!strcmp(request.path, "/v1/scan")) {
 		if (request.content_length == 6 && !memcmp(body, "active", 6)) {
 			rc = gateway_scan_mode("active");
 		} else if (request.content_length == 7 && !memcmp(body, "passive", 7)) {
@@ -152,7 +227,7 @@ static void handle(int fd, uint32_t source_ip)
 	}
 #endif
 	char result[64]; int n = snprintk(result, sizeof(result), "{\"error\":%d}", rc);
-	respond(fd, rc ? (rc == -EBUSY ? 409 : 422) : 202, result, n, "application/json");
+	respond(fd, rc ? (rc == -EBUSY ? 409 : rc == -ENOTSUP ? 405 : 422) : 202, result, n, "application/json");
 }
 void gateway_http_run(void)
 {

@@ -27,6 +27,26 @@ static int display_calls, select_calls, display_error;
 static int scan_error, transport_error, coex_error;
 static int mode_calls, mode_error;
 static char scan_mode[8];
+static int audio_starts, audio_stops, audio_error;
+static uint32_t audio_session;
+static int smp_calls, smp_error;
+static int alarm_calls, alarm_error;
+static bool alarm_active;
+static int robot_calls;
+int gateway_robot_command(const char *command) { robot_calls++;return !strcmp(command,"stop")?0:-EPERM; }
+int gateway_robot_status(char *s,size_t n,bool accepted) { return snprintf(s,n,"{\"accepted\":%s,\"command\":\"stop\",\"simulated\":true}",accepted?"true":"false"); }
+int gateway_alarm_status(char *s,size_t n) { return snprintf(s,n,"{\"available\":true,\"active\":null,\"acknowledged\":false}"); }
+int gateway_alarm_set(bool active) { alarm_calls++;alarm_active=active;return alarm_error; }
+bool gateway_smp_available(void) { return true; }
+int gateway_smp_transaction(const uint8_t *request,size_t size,uint8_t *reply,size_t capacity) {
+ assert(size<=1024&&capacity>=1024);smp_calls++;if(smp_error)return smp_error;
+ memcpy(reply,request,size);reply[0]++;return size;
+}
+int gateway_audio_status(char *s,size_t n) { return snprintf(s,n,"{\"available\":true,\"running\":false}"); }
+bool gateway_audio_available(void) { return true; }
+int gateway_audio_start(uint32_t session) { audio_starts++;audio_session=session;return audio_error; }
+int gateway_audio_stop(void) { audio_stops++;return audio_error; }
+size_t gateway_audio_chunk(uint8_t *out,size_t n) { assert(n>=176);memset(out,0,176);out[0]='W';out[1]='A';return 176; }
 static int64_t k_uptime_get(void) { return 0; }
 int http_read_before(int fd,void *data,size_t n,int64_t deadline) {
  (void)fd;(void)deadline;
@@ -58,6 +78,37 @@ static void request(const char *method,const char *path,const char *body,size_t 
 static void expect(int code) { char wanted[32];snprintf(wanted,sizeof(wanted),"HTTP/1.1 %d ",code);assert(strncmp(output,wanted,strlen(wanted))==0); }
 int main(void) {
  char full[85];memset(full,'A',sizeof(full));
+ const char smp[] = {2,0,0,1,0,1,10,1,0xa0};
+ request("GET","/v1/robot/status","",0,true);expect(200);
+ request("POST","/v1/robot/command","stop",4,true);expect(200);assert(robot_calls==1);
+ request("POST","/v1/robot/command","forward",7,true);expect(422);assert(robot_calls==2);
+ request("POST","/v1/robot/command","stop",4,false);expect(401);assert(robot_calls==2);
+ request("POST","/v1/robot/command","stop\0",5,true);expect(422);assert(robot_calls==2);
+ request("GET","/v1/alarm/status","",0,true);expect(200);
+ request("POST","/v1/alarm","on",2,true);expect(200);assert(alarm_calls==1&&alarm_active);
+ request("POST","/v1/alarm","off",3,true);expect(200);assert(alarm_calls==2&&!alarm_active);
+ request("POST","/v1/alarm","on",2,false);expect(401);assert(alarm_calls==2);
+ request("POST","/v1/alarm","ON",2,true);expect(422);assert(alarm_calls==2);
+ alarm_error=-EIO;request("POST","/v1/alarm","on",2,true);expect(422);alarm_error=0;
+ request("GET","/v1/smp/status","",0,true);expect(200);
+ request("POST","/v1/smp",smp,sizeof(smp),true);expect(200);assert(smp_calls==1);
+ request("POST","/v1/smp",smp,sizeof(smp),false);expect(401);assert(smp_calls==1);
+ request("POST","/v1/smp",smp,7,true);expect(400);assert(smp_calls==1);
+ smp_error=-ENOTSUP;request("POST","/v1/smp",smp,sizeof(smp),true);expect(503);smp_error=0;
+ request("GET","/v1/audio/status","",0,true);expect(200);assert(strstr(output,"\"available\":true")!=NULL);
+ request("GET","/v1/audio/status","",0,false);expect(401);
+ request("GET","/v1/audio/chunk","",0,true);expect(200);assert(strstr(output,"application/octet-stream")!=NULL);assert(strstr(output,"Content-Length: 176")!=NULL);
+ request("GET","/v1/audio/chunk","",0,false);expect(401);
+ request("POST","/v1/audio/start","4294967295",10,true);expect(202);assert(audio_starts==1&&audio_session==UINT32_MAX);
+ request("POST","/v1/audio/start","0",1,true);expect(422);assert(audio_starts==1);
+ request("POST","/v1/audio/start","4294967296",10,true);expect(422);assert(audio_starts==1);
+ request("POST","/v1/audio/start","-1",2,true);expect(422);assert(audio_starts==1);
+ request("POST","/v1/audio/start","1\n",2,true);expect(422);assert(audio_starts==1);
+ request("POST","/v1/audio/start","1",1,false);expect(401);assert(audio_starts==1);
+ request("POST","/v1/audio/stop","stop",4,true);expect(202);assert(audio_stops==1);
+ request("POST","/v1/audio/stop","stop",4,false);expect(401);assert(audio_stops==1);
+ request("POST","/v1/audio/stop","STOP",4,true);expect(422);assert(audio_stops==1);
+ audio_error=-EBUSY;request("POST","/v1/audio/start","2",1,true);expect(409);audio_error=0;
  request("POST","/v1/display",full,84,true);expect(200);assert(display_calls==1&&display_size==84);
  request("POST","/v1/display",full,85,true);expect(400);assert(display_calls==1);
  request("POST","/v1/display","x",1,false);expect(401);assert(display_calls==1);

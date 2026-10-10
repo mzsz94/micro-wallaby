@@ -1,0 +1,4 @@
+# Prepare once while online; model inference is strictly local.
+faster-whisper==1.2.1
+# 1.2.1 uses the metadata_errors PyAV argument removed by newer PyAV.
+av==16.0.1

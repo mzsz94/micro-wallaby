@@ -22,7 +22,7 @@ target_sources(app PRIVATE
   src/http_parse.c
 )
 if(CONFIG_GATEWAY_NU40_KIT)
-  target_sources(app PRIVATE src/ble_kit.c src/ota_disabled.c)
+  target_sources(app PRIVATE src/ble_kit.c src/smp_relay.c src/alarm_relay.c src/robot_state.c src/ota_disabled.c)
 else()
   target_sources(app PRIVATE src/ble_link.c src/ota.c
     ../wireless_lcd_common/dfu/legacy_dfu_client.c)

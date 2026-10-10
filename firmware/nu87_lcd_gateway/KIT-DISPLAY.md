@@ -1,5 +1,10 @@
 # NU40-KIT-DISPLAY 연결
 
+이 문서는 기존 표시 전용 KIT 펌웨어의 기준 동작입니다. 현재 브랜치의 선택적
+마이크·BTN4/스피커·NU87 모션 상태·인증된 SMP OTA 확장은
+[Voice Tactical 연결](VOICE-TACTICAL.md)을 확인하세요. 기존 KIT에 없는 기능은
+연결 준비로 간주하지 않으며, 아래 레거시 OTA 제한은 그대로 유지합니다.
+
 현재 NU40의 [mzsz94/nu40-ble-display](https://github.com/mzsz94/nu40-ble-display)
 펌웨어에 맞춘 NU87 중앙 장치 모드입니다. 기준 커밋은
 `230a1300d121b3bf25d3125a0cf247679148a40a`입니다. NU40의 기존 펌웨어를 유지합니다.
