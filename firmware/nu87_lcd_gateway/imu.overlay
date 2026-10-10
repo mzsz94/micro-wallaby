@@ -1,0 +1,17 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+#include <zephyr/dt-bindings/pinctrl/amebad-pinctrl.h>
+&pinctrl {
+	imu_i2c_default: imu_i2c_default {
+		group1 {
+			pinmux = <AMEBA_PINMUX('A', 25, AMEBA_I2C)>,
+				 <AMEBA_PINMUX('A', 26, AMEBA_I2C)>;
+			bias-pull-up;
+		};
+	};
+};
+&i2c0 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	pinctrl-0 = <&imu_i2c_default>;
+	pinctrl-names = "default";
+};

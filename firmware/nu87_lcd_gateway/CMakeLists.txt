@@ -2,6 +2,10 @@
 cmake_minimum_required(VERSION 3.20.0)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(nu87_lcd_gateway)
+if(CONFIG_GATEWAY_IMU)
+  target_include_directories(app PRIVATE ../nu87_imu_bringup/include)
+  target_sources(app PRIVATE src/imu_live.c ../nu87_imu_bringup/src/imu_device.c)
+endif()
 target_include_directories(app PRIVATE
   include
   ${ZEPHYR_BASE}/drivers/wifi/ameba

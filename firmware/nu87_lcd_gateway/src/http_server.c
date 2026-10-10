@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "gateway_http.h"
 #include "gateway_link.h"
+#include "gateway_imu.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
@@ -41,6 +42,15 @@ static void handle(int fd, uint32_t source_ip)
 		respond(fd, 400, "invalid request", 15, "text/plain"); return;
 	}
 	if (!authenticated(request.bearer)) { respond(fd, 401, "unauthorized", 12, "text/plain"); return; }
+	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/imu/status") &&
+	    !request.content_length) {
+		char result[512];
+		int n = gateway_imu_status(result, sizeof(result));
+		if (n < 0 || (size_t)n >= sizeof(result)) {
+			respond(fd, 503, "IMU unavailable", 15, "text/plain"); return;
+		}
+		respond(fd, 200, result, (size_t)n, "application/json"); return;
+	}
 #if defined(CONFIG_GATEWAY_NU40_KIT)
 	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/robot/status") && !request.content_length) {
 		char result[256];

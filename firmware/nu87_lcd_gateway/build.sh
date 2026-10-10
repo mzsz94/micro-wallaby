@@ -11,8 +11,12 @@ GATEWAY_DEPS="${GATEWAY_ROOT}/build/nu87-gateway-deps"
 GATEWAY_BUILD="${GATEWAY_BUILD_DIR:-${GATEWAY_ROOT}/build/nu87-lcd-gateway}"
 GATEWAY_PAIRING_FILE=""
 GATEWAY_CMAKE_ARGS=()
+GATEWAY_IMU=0
 while [[ $# -gt 0 ]]; do
-  if [[ "$1" == "--pairing-code-file" ]]; then
+  if [[ "$1" == "--imu" ]]; then
+    GATEWAY_IMU=1
+    shift
+  elif [[ "$1" == "--pairing-code-file" ]]; then
     if [[ $# -lt 2 ]]; then echo "--pairing-code-file requires a private file path" >&2; exit 2; fi
     GATEWAY_PAIRING_FILE="$2"
     shift 2
@@ -29,6 +33,11 @@ for module in mbedtls-098e120afb51877ed814bdc04443890ae12e0642 TF-PSA-Crypto-fa9
 done
 GATEWAY_EXTRA_CONF="program.conf"
 if [[ -f "${GATEWAY_APP}/local.conf" ]]; then GATEWAY_EXTRA_CONF="${GATEWAY_EXTRA_CONF};local.conf"; fi
+if [[ "${GATEWAY_IMU}" == 1 ]]; then
+  bash "${GATEWAY_ROOT}/firmware/nu87_imu_bringup/apply_i2c_patch.sh"
+  GATEWAY_EXTRA_CONF="${GATEWAY_EXTRA_CONF};imu.conf"
+  GATEWAY_CMAKE_ARGS+=("-DDTC_OVERLAY_FILE=${GATEWAY_APP}/app.overlay;${GATEWAY_APP}/imu.overlay")
+fi
 if [[ -n "${GATEWAY_PAIRING_FILE}" ]]; then
   python3 "${GATEWAY_APP}/pairing_config.py" --pairing-code-file "${GATEWAY_PAIRING_FILE}" \
     --output "${GATEWAY_BUILD}/private-pairing.conf"

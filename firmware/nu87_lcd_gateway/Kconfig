@@ -2,6 +2,12 @@
 mainmenu "NU87 Wi-Fi to NU40 BLE LCD gateway"
 source "Kconfig.zephyr"
 menu "LCD gateway settings"
+config GATEWAY_IMU
+	bool "Read an attached LSM6DS3/LSM6DS3TR-C over PA25/PA26"
+	select I2C
+	select GPIO
+	select PINCTRL
+	default n
 choice GATEWAY_DISPLAY_PROTOCOL
 	prompt "NU40 display firmware protocol"
 	default GATEWAY_LCD_LEGACY
