@@ -2,7 +2,7 @@ build/
 backups/
 .venv/
 .west/
-.zephyr-sdk/
+.zephyr-sdk
 .ccache/
 .arduino/
 __pycache__/

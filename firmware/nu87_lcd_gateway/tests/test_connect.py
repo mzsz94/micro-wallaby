@@ -90,6 +90,19 @@ class ConnectTests(unittest.TestCase):
                 connect.monitor(**kwargs)
             factory.assert_not_called()
 
+    def test_linux_device_requires_exact_bridge_serial_and_anchored_path(self):
+        handle, factory, _, kwargs = self.observe([
+            b"Open http://192.168.1.8:8080/ on the same network\n"],
+            ports=[port(device="/dev/ttyUSB0"), port(serial="other", device="/dev/ttyUSB1")])
+        self.assertEqual(connect.monitor(**kwargs), ("192.168.1.8", 8080))
+        self.assertEqual(handle.port, "/dev/ttyUSB0")
+        handle.close.assert_called_once()
+        for name in ("/dev/ttyUSB", "/dev/ttyUSB0extra", "/dev/ttyACM0"):
+            _, factory, _, kwargs = self.observe([], ports=[port(device=name)])
+            with self.assertRaises(connect.ConnectionError):
+                connect.monitor(**kwargs)
+            factory.assert_not_called()
+
     def test_timeout_is_finite_and_bounded_before_open(self):
         for timeout in (float("inf"), float("nan"), 0, -1, 601):
             _, factory, _, kwargs = self.observe([])

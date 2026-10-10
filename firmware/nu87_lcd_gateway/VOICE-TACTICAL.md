@@ -8,6 +8,8 @@ This branch adds optional services to the existing KIT display connection:
 
 The original KIT display firmware remains compatible. Missing audio, alarm or authenticated SMP services report unavailable; discovering them never substitutes an unrelated BLE peer. These extensions require the corresponding `firmware/nu40_voice` application. The host adapter is `voice_tactical/gateway.py`.
 
+For the Linux/WSL build, upload and Wi-Fi startup workflow, see [LINUX.md](LINUX.md).
+
 ## Authenticated HTTP interface
 
 All routes use the existing bearer token. Host tooling accepts only numeric private/loopback IP addresses, ignores HTTP proxy settings and never follows redirects. Credentials come from `NU87_GATEWAY_TOKEN` or the existing private Kconfig file. No route below drives physical motors.

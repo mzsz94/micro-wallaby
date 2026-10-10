@@ -118,7 +118,8 @@ def select_port(ports, serial_number: str) -> str:
     matches = [port.device for port in ports
                if port.vid == 0x10C4 and port.pid == 0xEA60
                and port.serial_number == serial_number
-               and port.device.startswith("/dev/cu.")]
+               and (port.device.startswith("/dev/cu.")
+                    or re.fullmatch(r"/dev/ttyUSB[0-9]+", port.device))]
     if len(matches) != 1:
         raise ConnectionError("Exactly one matching CP2102N USB serial port is required; no port was opened.")
     return matches[0]
