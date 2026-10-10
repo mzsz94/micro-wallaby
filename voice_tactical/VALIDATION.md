@@ -155,10 +155,35 @@ NU40 `0.1.1+0` 앱과 MCUboot를 실제 sysbuild로 다시 빌드했으며 컴�
 - MCUboot 이미지 해시:
   `467a9f2ffa246d5eb6a3378932c89bcf53c8436beaf18572cced31b41cff4426`
 
-앞선 NU40 실물 설치 결과는 이전 `0.1.0`에 해당한다. BTN2/BTN3 후속 변경은
-NU87 경유 OTA 연결과 실제 버튼·마이크·스피커 시험이 완료되기 전까지 보드 검증으로
-기록하지 않는다. 이전 서명 이미지와 초기 설치 파일은 Git 제외 경로
-`build/nu40-voice-0.1.0/`에 보관했다.
+앞선 NU40 초기 설치 결과는 이전 `0.1.0`에 해당한다. 이전 서명 이미지와 초기 설치
+파일은 Git 제외 경로 `build/nu40-voice-0.1.0/`에 보관했다.
+
+### 0.1.1 USB 설치 (2026-10-11 KST)
+
+사용자가 NU40 직접 연결 후 설치를 요청했다. 동일 USB serial의 BARAM-NU40를 확인하고
+1200 baud로 UF2 부트로더에 진입했다. 기존 `CURRENT.UF2`와 `INFO_UF2.TXT`를
+`build/nu40-backups/20261011-013205-btn23/`에 백업했다. 실제 `0x1000–0x75fff`는
+보관된 0.1.0 factory UF2의 MCUboot와 confirmed 앱 바이트에 완전히 일치했다.
+Confirmed HEX와 별도로 서명한 OTA BIN의 ECDSA TLV 바이트는 서로 다를 수 있으므로
+설치 상태 비교에는 당시 사용한 factory UF2를 기준으로 삼았다.
+
+- 0.1.1 confirmed HEX의 공개키 서명 검증과 이미지 해시 확인을 다시 통과했다.
+- 설정 보존용 UF2는 정확히 `0x10000–0xdbfff`만 기록한다. 새 confirmed 앱 이외의
+  primary 영역과 secondary 영역은 FF로 채워 이전 swap 상태를 제거했다.
+  MBR·MCUboot·NVS/BLE 페어링·USB 부트로더는 기록 범위에서 제외했다.
+- 3,264개 UF2 블록, 1,671,168바이트의 주소·family·번호·데이터·confirmed footer를
+  독립 검증한 뒤 USB 전송과 fsync를 완료했다. 파일 SHA-256:
+  `fb201cff30a4ba1739141634b40b98ef045c4ff480c92ae1268a4d5606c3d104`.
+- 같은 USB serial과 `military-wallaby NU40 voice` 제품명으로 재등장했다.
+  실제 로그에서 `oled_init=0`, `VOICE|BOOT ready=1 ... buttons=2,3`,
+  `VOICE|BTN2=P1.07 BTN3=P1.06 init=0`, `ALARM|BTN4=P1.05 init=0`을 확인했다.
+- BLE 초기화·광고는 성공했으나 연결 후 MTU 협상 `error=14`, 해제 `reason=19`가
+  반복됐다. 중앙 장치의 정체는 확인하지 않았으며 NU87 음성 전달 성공으로 기록하지 않는다.
+
+설치 파일과 주소 범위를 검증하고 재부팅·초기화를 확인했으며, 설치 후 전체 flash
+readback 비교나 물리 버튼을 누른 실제 음성 입력 시험은 수행하지 않았다.
+설치 메타데이터와 로그는 `build/nu40-buttons-validation/usb-update.json`, `usb-boot.log`에
+비공개로 보관했다. NU87 펌웨어와 HostPC 실행 코드는 변경하지 않았다.
 
 ## 남은 실물 시험
 

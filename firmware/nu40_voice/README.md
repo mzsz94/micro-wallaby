@@ -185,7 +185,13 @@ The build compiles MCUboot and the app and runs `imgtool verify` on the update.
 The factory UF2 was installed on the identified BARAM-NU40 after backing up its
 previous firmware. New USB enumeration and OLED/PDM/BTN4/BLE initialization were
 observed for 0.1.0; see [the validation record](../../voice_tactical/VALIDATION.md).
-Version 0.1.1 button recording was built and signature-verified, but was not
-installed as part of this change. BTN2/BTN3 capture and playback need a bench test.
+Version 0.1.1 button recording was subsequently installed over USB at the user's
+request. The connected board's existing bootloader and confirmed 0.1.0 app first
+matched the saved factory image. A verified app-only UF2 wrote both image slots
+(`0x10000–0xdbfff`) while preserving MCUboot, NVS/BLE settings and the USB
+bootloader. Reboot logs confirmed PDM and BTN2/BTN3/BTN4 initialization. BLE
+connected and repeatedly disconnected during observation; MTU negotiation
+reported error 14, and the central's identity was not established. BTN2/BTN3
+capture and transmission still need a bench test with a stable NU87 connection.
 PDM waveform quality, BLE throughput with Wi-Fi active, OLED pixels, audible
 BTN4 warning and complete OTA test/confirm/revert still need bench verification.
