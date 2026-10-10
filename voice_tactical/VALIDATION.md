@@ -18,7 +18,7 @@
 | `python3 -m unittest discover -s voice_tactical/tests -q` | 94개 통과 |
 | `node --test simulation/*.test.mjs voice_tactical/web/*.test.mjs` | 31개 통과 |
 | NU87 firmware Python 테스트 | 46개 통과 |
-| NU40 초기 설치 패키지 테스트 (`intelhex==2.3.0`) | 2개 통과 |
+| NU40 초기 설치 패키지 테스트 (`intelhex==2.3.0`) | 3개 통과 |
 | 공통 오디오·버튼 C 테스트를 실행하는 Python 테스트 | 1개 통과 |
 | `firmware/nu87_lcd_gateway/tests/run_kit_tests.sh` | 프로토콜 13개 및 KIT 콜백·오디오·SMP·경고·로봇 C 검사 통과, ASan/UBSan 적용 |
 
@@ -54,7 +54,7 @@ OTA CLI의 `inspect`는 구조와 SHA-256만 검증한다. 공개키 서명 확�
 | NU40 앱 | FLASH 232,784 B / RAM 80,176 B |
 | MCUboot | FLASH 27,548 B / RAM 15,936 B |
 | NU40 업데이트 이미지 | 232,936 B, version `0.1.0+0` |
-| NU40 초기 설치 UF2 | 521,728 B; MBR·기존 UF2 영역 보존 테스트 통과 |
+| NU40 초기 설치 UF2 | 1,826,816 B; 이전 OTA 상태 초기화·MBR·기존 UF2 영역 보존 테스트 통과 |
 | NU87 개발망·공통 페어링 코드 적용 최종 빌드 | FLASH 614,192 B / RAM 206,542 B |
 | NU87 병합 이미지 | 679,872 B |
 
@@ -62,6 +62,8 @@ NU40 이미지 해시(MCUboot):
 `86dbeb9601eb33bcef5aa45953f5d39c5b80f8f4af0e4f6fbcc6842d892a2717`.
 NU40 전송 파일 SHA-256:
 `f551963a8d7fec3d39ee48c6897beee491ca96348595f40df4222dff0e17d487`.
+NU40 최종 초기 설치 UF2 SHA-256:
+`071f1bda6ac45805b4222b101fb3a1a9f4bf9f3b424478f8dbc060e987f9ab0b`.
 NU87 파일 SHA-256:
 `89ab5ab70f06b6f6ed45f5e931c0d6d3e95c53917f8e6edbcb24e0ecdba2b361`.
 
@@ -89,13 +91,41 @@ API 토큰을 포함한다. 컴파일된 설정이 해당 파일과 일치하고
   상태 요청은 시간 초과였다. 같은 개발망 연결 후 HTTP·BLE 경로를 추가 확인해야 한다.
 
 비공개 로컬 기록은 `build/nu87-voice/flash.log`, `boot.log`에 저장했다.
-NU40는 사용자의 요청에 따라 이번 단계에서 USB 설치·OTA를 수행하지 않았다.
+이 NU87 검증 단계에서는 NU40의 USB 설치·OTA를 수행하지 않았다.
+
+## NU40 실물 초기 설치와 부팅
+
+이후 사용자가 연결한 NU40DK를 USB 식별값으로 확인했다. 당시 앱은 참고 저장소의
+OLED 전용 버전과 달리 `firmware=3`, `version=0.1.4`, `transport=smp_ble`를 보고했다.
+USB 부트로더로 전환해 `Board-ID: BARAM-NU40`, `SoftDevice: not found`,
+부트로더 `60c185b`를 확인하고 기존 `CURRENT.UF2`와 `INFO_UF2.TXT`를 비공개로 백업했다.
+
+기존 이미지에는 새 레이아웃의 primary trailer 페이지에 4,046바이트의 비어 있지 않은
+데이터가 남아 있었다. Sparse UF2는 해당 페이지의 다른 바이트를 보존하므로, 초기 설치
+생성기를 보완해 `0x1000–0xdffff` 전체를 명시적으로 기록하도록 했다. 검증된 MCUboot와
+confirmed 앱 이외에는 이전 OTA 상태·secondary slot·NVS·BLE 페어링을 초기화한다.
+MBR `0x0–0xfff`와 USB 복구 부트로더 `0xe0000+`는 기록 대상에서 제외한다.
+이 초기화는 factory UF2에만 적용하며 이후 signed SMP OTA에는 적용하지 않는다.
+
+- 3,568개 UF2 블록의 주소·번호·family ID·magic과 원본 HEX 일치를 독립적으로 검사했다.
+  primary image_ok=1 및 MCUboot magic 보존, secondary/NVS의 erased 값도 확인했다.
+- 최종 UF2 1,826,816바이트 전송을 완료하고 새 USB 제품명
+  `military-wallaby NU40 voice`로 재등장한 것을 확인했다.
+- 실제 부팅 로그: `role=military-wallaby firmware=2`, `oled_init=0`,
+  PDM `ready=1 rate=16000 frame=176`, BTN4 `P1.05 init=0`, BLE 초기화·광고 결과 0.
+- BLE 연결과 ATT MTU 247 협상도 관찰했으나, 그 연결의 중앙 장치가 NU87인지는
+  이 USB 로그만으로 확인하지 않았다. 전체 플래시 readback 비교는 수행하지 않았다.
+
+백업은 Git 제외 경로 `build/nu40-backups/`, 새 부팅 로그는
+`build/nu40-device-validation/boot.log`에 저장했다. 실제 음질·스피커 가청 출력 및
+NU87 경유 OTA 업로드·시험 부팅·확정·롤백은 아직 검증하지 않았다.
 
 ## 남은 실물 시험
 
-NU87 다운로드와 Wi-Fi 부팅은 위와 같이 확인했다. 다음은 벤치 검증이 필요하다.
+NU87 다운로드·Wi-Fi 부팅과 NU40 초기 설치·주변장치 초기화는 위와 같이 확인했다.
+다음은 벤치 검증이 필요하다.
 
-1. HostPC를 NU87과 같은 개발망에 연결해 인증 HTTP 확인, NU40 MCUboot 최초 설치 후 BLE 인증 연결.
+1. HostPC를 NU87과 같은 개발망에 연결해 인증 HTTP 및 NU87↔NU40 BLE 인증 연결 확인.
 2. 키트 배선, PDM 음질·잡음, BLE 오디오 처리량과 프레임 손실.
 3. BTN4를 눌렀을 때 실제 스피커 경고음, NU87 경고 상태와 화면의 정지·해제.
 4. 서명 이미지 OTA 업로드 → 시험 부팅 → 기능 점검 → 명시적 확정.

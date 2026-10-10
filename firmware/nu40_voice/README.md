@@ -93,11 +93,25 @@ are never printed. Keep keys outside the pristine build directory and out of
 Git; the repository's `build/` is ignored. Preserve the signing key for future
 updates. Changing the signing key requires provisioning its new public key in
 MCUboot. BLE SMP image/reset commands require authenticated encryption (L3).
+The build directory is mode 700 and published artifacts are mode 600 because
+the compiled firmware embeds the private pairing code; treat binaries as private.
 
-The existing OLED-only application has no MCUboot/SMP OTA service. It needs
+The referenced OLED-only application has no MCUboot/SMP OTA service. It needs
 one initial USB provisioning step with `build/nu40-voice/artifacts/initial-provision.uf2`.
-The script **does not flash** a device. The UF2 contains the MCUboot chain and
-initial confirmed signed app, preserving the MBR and onboard UF2 bootloader.
+Other installed firmware versions must be identified before choosing a migration
+path. The script **does not flash** a device. The UF2 contains the MCUboot chain
+and initial confirmed signed app, preserving the MBR and onboard UF2 bootloader.
+
+This **factory UF2 resets previous firmware, OTA swap metadata, the entire
+secondary image slot, NVS settings and BLE pairing bonds**. It explicitly writes
+every byte from `0x1000` through `0xdffff`, including erased-value padding. Sparse
+UF2 payloads alone would preserve older swap status elsewhere in a flash page
+and could resume an incompatible swap. Back up the existing `CURRENT.UF2` and
+record `INFO_UF2.TXT` first. Verify `Board-ID: BARAM-NU40`, `SoftDevice: not found`
+and the expected memory layout. Readback verification compares UF2 payloads by
+flash address; a whole-file hash can differ because readback uses another UF2
+layout. Pair again with the locally provisioned code after factory installation.
+Subsequent signed SMP OTA updates preserve NVS settings and pairing bonds.
 
 | Board region | Range |
 | --- | --- |
@@ -125,6 +139,8 @@ python3 -m unittest discover -s firmware/voice_common/tests -v
 The host test runs IMA reference vectors, saturation/length/control validation,
 waveform roundtrips and BTN4 bounce/hold/clock-wrap cases under ASan/UBSan.
 The build compiles MCUboot and the app and runs `imgtool verify` on the update.
-No physical board has been flashed by this implementation task. Verify PDM
-waveform quality, BLE throughput with Wi-Fi active, OLED rendering, audible
-BTN4 warning and complete OTA test/confirm/revert on the actual hardware.
+The factory UF2 was installed on the identified BARAM-NU40 after backing up its
+previous firmware. New USB enumeration and OLED/PDM/BTN4/BLE initialization were
+observed; see [the validation record](../../voice_tactical/VALIDATION.md).
+PDM waveform quality, BLE throughput with Wi-Fi active, OLED pixels, audible
+BTN4 warning and complete OTA test/confirm/revert still need bench verification.
