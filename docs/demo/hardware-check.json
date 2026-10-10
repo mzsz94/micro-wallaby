@@ -1,0 +1,74 @@
+{
+  "observed_on": "2026-10-11 Asia/Seoul",
+  "nu87_source_commit": "b8c5635",
+  "http": {
+    "authenticated_status_checks": [
+      {
+        "attempt": 1,
+        "elapsed_ms": 1555,
+        "available": true,
+        "ready": true,
+        "connected": true,
+        "lcdReady": true,
+        "protocol": "nu40-kit-display"
+      },
+      {
+        "attempt": 2,
+        "elapsed_ms": 972,
+        "available": true,
+        "ready": true,
+        "connected": true,
+        "lcdReady": true,
+        "protocol": "nu40-kit-display"
+      },
+      {
+        "attempt": 3,
+        "elapsed_ms": 921,
+        "available": true,
+        "ready": true,
+        "connected": true,
+        "lcdReady": true,
+        "protocol": "nu40-kit-display"
+      }
+    ],
+    "unauthenticated_status_code": 401,
+    "credentials_included": false,
+    "peer_identity": "Unique discovered matching service/name peer selected; not cryptographically authenticated."
+  },
+  "display": {
+    "http_status": 200,
+    "elapsed_ms": 3302,
+    "display_text": "WALLABY VOICE\nHOST -> NU87 -> NU40\nOLED ACK OK\nLOCAL / OFFLINE",
+    "result": {
+      "ok": true,
+      "configured": true,
+      "available": true,
+      "protocol": "nu40-kit-display",
+      "acknowledged": true,
+      "verification": "gateway-matching-ack",
+      "visual_verified": false,
+      "columns": 21,
+      "rows": 4,
+      "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately."
+    },
+    "visual_observed": false
+  },
+  "microphone": {
+    "frames_decoded": 4,
+    "samples_decoded": 1280,
+    "pcm_seconds": 0.08,
+    "rms_without_dc": 0.0,
+    "sequences_strictly_increasing": true,
+    "speech_content_quality": "not tested",
+    "raw_audio_stored": false
+  },
+  "nu40_firmware_identity": "not independently determined",
+  "nu40_update_performed": false,
+  "limitations": [
+    "No independent flash readback",
+    "No human OLED pixel observation",
+    "No continuous acoustic microphone capture verified",
+    "No OTA verification",
+    "No physical motors or IMU used"
+  ]
+}

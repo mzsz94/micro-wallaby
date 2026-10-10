@@ -66,6 +66,8 @@ sequence. This is an opt-in attempt and requires compatible board wiring; it is
 not a guarantee that the NU87 can enter download mode without the buttons. The
 vendor process has a bounded timeout. Whole-chip erase remains disabled.
 The argument order follows [Realtek's uploader documentation](https://forum.amebaiot.com/t/imagetool-for-linux/1376).
+NUCODE also documents automatic flashing in its
+[NU87 TinyDK start guide](https://nucode.gitbook.io/nuseries/downloads/nu-87-tinydk).
 
 ## Observe Wi-Fi startup and connect the PC
 
@@ -80,6 +82,11 @@ Wi-Fi is already running. If startup prints the complete empty-eFuse warning,
 does not write eFuse. The observer redacts the configured password and API token
 and saves the observed private DHCP address in
 `build/nu87-lcd-gateway/gateway-connection.json`.
+If the board restarts during observation, `--max-boot-acknowledgements 3` allows
+at most three acknowledgements, with each later acknowledgement requiring a
+fresh ROM boot marker and the complete warning. Duplicate prompts within one
+boot are not acknowledged again. Repeated restarts are still a diagnostic issue;
+the option does not establish their cause or hide them from the log.
 
 Start the existing Host PC interface using the observed IP:
 

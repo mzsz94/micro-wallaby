@@ -71,6 +71,27 @@ class ConnectTests(unittest.TestCase):
             handle.write.assert_not_called()
             handle.close.assert_called_once()
 
+    def test_warning_retry_requires_fresh_boot_and_respects_total_limit(self):
+        prompt = connect.EFUSE_PROMPT.encode() + b"\n"
+        boot = b"[BOOT-I] IMG1 ENTER ROMSUB:2\n"
+        data = [boot + prompt + prompt, boot + prompt + prompt,
+                boot + prompt, b"Open http://192.168.1.8:8080/ ready\n"]
+        for limit in (1, 2, 3):
+            handle, _, output, kwargs = self.observe(data)
+            kwargs["max_boot_acknowledgements"] = limit
+            self.assertEqual(connect.monitor(**kwargs), ("192.168.1.8", 8080))
+            self.assertEqual(handle.write.call_count, limit)
+            self.assertTrue(all(call.args == (b"\n",) for call in handle.write.call_args_list))
+            self.assertIn(f"({limit}/{limit})", output.getvalue())
+
+    def test_invalid_warning_retry_limit_rejected_before_open(self):
+        for limit in (0, 4, True, 1.5):
+            _, factory, _, kwargs = self.observe([])
+            kwargs["max_boot_acknowledgements"] = limit
+            with self.assertRaises(connect.ConnectionError):
+                connect.monitor(**kwargs)
+            factory.assert_not_called()
+
     def test_firmware_halt_stops_observation_and_closes_port(self):
         handle, _, output, kwargs = self.observe([
             b"[00:00:41] <err> os: >>> ZEPHYR FATAL ERROR 4: Kernel panic\n",

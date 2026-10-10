@@ -5,7 +5,8 @@ This does not send a reset or flash command. Opening a serial port can change
 adapter control signals and restart the board; prefer HTTP for an already
 connected gateway. Start it before pressing RESET when capturing boot. The
 optional eFuse-warning acknowledgement sends one newline only after this serial
-session observes the vendor's complete prompt; it never programs eFuse.
+session observes the vendor's complete prompt; it never programs eFuse. A bounded
+opt-in retry permits another acknowledgement after a fresh ROM boot marker.
 """
 
 from __future__ import annotations
@@ -127,17 +128,20 @@ def select_port(ports, serial_number: str) -> str:
 
 def monitor(*, serial_number: str, timeout: float, acknowledge: bool,
             redactions: tuple[str, ...], ports, serial_factory, output=sys.stdout,
-            clock=time.monotonic) -> tuple[str, int]:
+            clock=time.monotonic, max_boot_acknowledgements: int = 1) -> tuple[str, int]:
     if not math.isfinite(timeout) or not 1 <= timeout <= 600:
         raise ConnectionError("Timeout must be finite and between 1 and 600 seconds.")
     if not serial_number or any(not char.isalnum() for char in serial_number):
         raise ConnectionError("Provide the exact alphanumeric USB serial number.")
+    if type(max_boot_acknowledgements) is not int or not 1 <= max_boot_acknowledgements <= 3:
+        raise ConnectionError("Startup acknowledgement limit must be an integer from 1 to 3.")
     device = select_port(ports, serial_number)
     serial = serial_factory(port=None, baudrate=1500000, timeout=0.2, write_timeout=1)
     serial.dtr = False
     serial.rts = False
     serial.port = device
     acknowledged = False
+    acknowledgement_count = 0
     warned = False
     lines = Lines()
     deadline = clock() + timeout
@@ -148,6 +152,9 @@ def monitor(*, serial_number: str, timeout: float, acknowledge: bool,
             for raw in lines.feed(serial.read(2048)):
                 line = clean_line(raw)
                 print(redact(line, redactions), file=output, flush=True)
+                if (line.startswith("[BOOT-I] IMG1 ENTER ROMSUB:")
+                        and acknowledgement_count < max_boot_acknowledgements):
+                    acknowledged = False
                 if "<err> os:" in line and line.endswith("Halting system"):
                     raise ConnectionError("NU87 firmware halted; inspect the preceding fault log before resetting.")
                 if EFUSE_PROMPT in line and not acknowledged:
@@ -155,7 +162,10 @@ def monitor(*, serial_number: str, timeout: float, acknowledge: bool,
                         if serial.write(b"\n") != 1:
                             raise ConnectionError("Could not send the one-byte startup acknowledgement.")
                         acknowledged = True
-                        print("Acknowledged the observed eFuse prompt once; no eFuse data was written.", file=output, flush=True)
+                        acknowledgement_count += 1
+                        print(f"Acknowledged the observed eFuse prompt "
+                              f"({acknowledgement_count}/{max_boot_acknowledgements}); "
+                              "no eFuse data was written.", file=output, flush=True)
                     elif not warned:
                         print("Startup is waiting for a key; automatic acknowledgement was not enabled.", file=output, flush=True)
                         warned = True
@@ -191,6 +201,8 @@ def main(argv=None) -> int:
     parser.add_argument("--timeout", type=float, default=90)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--acknowledge-efuse-warning", action="store_true")
+    parser.add_argument("--max-boot-acknowledgements", type=int, choices=(1, 2, 3), default=1,
+                        help="bounded fresh-boot warning retries; default one acknowledgement")
     args = parser.parse_args(argv)
     try:
         import serial
@@ -199,7 +211,8 @@ def main(argv=None) -> int:
         address, port = monitor(serial_number=args.serial_number, timeout=args.timeout,
                                 acknowledge=args.acknowledge_efuse_warning,
                                 redactions=redactions, ports=list_ports.comports(),
-                                serial_factory=serial.Serial)
+                                serial_factory=serial.Serial,
+                                max_boot_acknowledgements=args.max_boot_acknowledgements)
         save_state(STATE_PATH, serial_number=args.serial_number, address=address, port=port)
         print(f"Observed NU87 Wi-Fi ready: http://{address}:{port}/")
     except ConnectionError as error:
