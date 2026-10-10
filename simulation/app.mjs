@@ -1,6 +1,8 @@
 import { CONFIG, SCENARIOS, Simulator } from './model.mjs';
 import { createVoiceController, isParentMessage } from './voice-control.mjs';
 import { arenaLayout } from './render-layout.mjs';
+import { createDemoController } from './demo-control.mjs';
+import { drawDemoArena, drawDemoRobot } from './demo-render.mjs';
 
 const $ = (id) => document.getElementById(id);
 const sim = new Simulator();
@@ -12,6 +14,8 @@ let feedbackTimer;
 const held = new Set();
 const history = [];
 const embedded = window.parent !== window;
+const demoMode = embedded && new URLSearchParams(location.search).get('demo') === '1';
+let demo = null;
 const alertBanner = document.createElement('div');
 alertBanner.className = 'voice-alert-banner';
 alertBanner.setAttribute('role', 'alert');
@@ -35,6 +39,7 @@ if (embedded) {
       window.parent.postMessage({ type: 'wallaby-voice-ready' }, location.origin);
     } else if (event.data.type === 'wallaby-voice-heartbeat') voice.heartbeat();
     else if (event.data.type === 'wallaby-voice-command') {
+      demo?.stop();
       release();
       $('speed').value = '1';
       accumulator = 0;
@@ -42,15 +47,17 @@ if (embedded) {
       refresh(sim.snapshot());
     }
   });
-  window.addEventListener('pagehide', () => voice.stop('pagehide'));
+  window.addEventListener('pagehide', () => { demo?.stop(); voice.stop('pagehide'); });
 }
 function setVoiceAlert(active) {
+  if (active) demo?.stop();
   held.clear();
   voice.setAlert(active);
   alertBanner.hidden = !active;
   document.body.classList.toggle('voice-alert-active', active);
   for (const element of document.querySelectorAll('#dock,#welcome,#clear-fault,#reset,#scenario,[data-drive],#headYaw,#headPitch,#waistYaw')) element.disabled = active;
   refresh(sim.snapshot());
+  if (embedded) window.parent.postMessage({ type: 'wallaby-alert-state', active: voice.alertActive }, location.origin);
 }
 const flagNames = {
   estop: 'E-stop', bumper: '범퍼 접촉', cliff: '낭떠러지',
@@ -108,6 +115,7 @@ for (const [name, label] of Object.entries(flagNames)) {
 
 function reset() {
   if (voice.alertActive) return;
+  demo?.stop();
   voice.interrupt('reset');
   held.clear();
   sim.reset($('scenario').value);
@@ -124,6 +132,7 @@ function reset() {
 $('scenario').addEventListener('change', reset);
 $('reset').addEventListener('click', reset);
 $('pause').addEventListener('click', () => {
+  demo?.stop();
   voice.interrupt('pause');
   release();
   paused = !paused;
@@ -204,8 +213,9 @@ window.addEventListener('keyup', event => {
   const direction = keys[event.key] || keys[event.key.toLowerCase()];
   if (direction && held.delete(direction)) updateManual();
 });
-window.addEventListener('blur', () => { release(); if (embedded) voice.stop('blur'); });
+window.addEventListener('blur', () => { demo?.stop(); release(); if (embedded) voice.stop('blur'); });
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) demo?.stop();
   if (embedded && document.hidden) voice.stop('hidden');
   release();
   accumulator = 0;
@@ -277,6 +287,7 @@ function surface(id) {
 }
 
 function arena(s) {
+  if (demoMode) return drawDemoArena(surface('arena'), demo.snapshot());
   const { ctx, width, height } = surface('arena');
   const layout = arenaLayout(width, height, s.world);
   if (!layout) return;
@@ -318,6 +329,7 @@ function arena(s) {
 
 // A light, dependency-free articulated concept view. Geometry is illustrative.
 function robot(s) {
+  if (demoMode) return drawDemoRobot(surface('robot'), demo.snapshot());
   const { ctx, width, height } = surface('robot');
   const unit = Math.min(width / 3.1, height / 3.45);
   const radians = degrees => degrees * Math.PI / 180;
@@ -368,6 +380,7 @@ function robot(s) {
 
 function frame(now) {
   voice.tick();
+  demo?.tick();
   if (previousTime !== undefined && !paused && !document.hidden) {
     accumulator += Math.min((now - previousTime) / 1000, .1) * Number($('speed').value);
     while (accumulator >= CONFIG.dt) { sim.step(CONFIG.dt); accumulator -= CONFIG.dt; }
@@ -377,6 +390,15 @@ function frame(now) {
   arena(snapshot); robot(snapshot);
   if (now - lastUiUpdate >= 80) { refresh(snapshot); lastUiUpdate = now; }
   requestAnimationFrame(frame);
+}
+if (demoMode) {
+  demo = createDemoController(sim, voice, { canRun: () => !paused && !document.hidden, resetModel: reset });
+  window.wallabyDemo = Object.freeze({ apply: demo.apply, snapshot: demo.snapshot, reset: demo.reset });
+  document.body.classList.add('wallaby-demo-mode');
+  document.querySelector('.arena-panel .panel-title span').textContent = '실제 모델 궤적 · AUTO ZOOM';
+  document.querySelector('.robot-panel .panel-title h3').textContent = 'Wallaby · 표정과 움직임';
+  document.querySelector('.robot-panel .panel-title span').textContent = 'LIVE RESPONSE';
+  document.querySelector('.robot-panel .caption').textContent = '음성·상황별 표정과 관절 반응 · 가상 시연';
 }
 reset();
 if (embedded) window.parent.postMessage({ type: 'wallaby-voice-ready' }, location.origin);

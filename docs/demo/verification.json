@@ -1,62 +1,149 @@
 {
-  "source_base": "test/military-wallaby @ 7d8d4bd",
+  "source_base": "49f8d2394c5d24967b6675b0a6e2ce286192ebf2",
   "resolution": [
     1120,
     630
   ],
   "fps": 8,
+  "seconds_per_scene": 12,
   "external_browser_requests": [],
   "browser_errors": [],
   "verification": [
     "real local API responses",
     "report persisted to isolated SQLite",
     "two orders with unknown second deadline",
-    "motion before warning; zero velocity after warning",
-    "movement rejected while alert latched",
-    "warning clear leaves robot idle"
+    "all scenes have visible actual model paths and changing expressions",
+    "motion before warning; zero linear/angular velocity and frozen pose after warning",
+    "movement rejected while alert latched; clear leaves robot idle",
+    "mock search reaches target; discovery report received by local control tower"
   ],
   "boundaries": {
     "speech_input": "captioned text; no STT performance claim",
     "response": "local rules and evidence retrieval; no LLM model used",
     "knowledge": "development training examples, not official military manuals",
-    "robot": "Motion Lab simulation; no physical motor or sensor verification",
+    "robot": "Motion Lab choreography, not autonomous language-command execution or physical hardware",
+    "detection": "mock training target; no explosive detection sensor",
+    "control_tower": "local report API and SQLite receipt; no external transmission",
     "gif_audio": false
   },
+  "scenes": [
+    {
+      "scene": "01-manual-query",
+      "displacement_m": 0.2885,
+      "expressions": [
+        "listening",
+        "thinking",
+        "happy"
+      ],
+      "head_yaw_range_deg": 29.84,
+      "events": [
+        "response"
+      ]
+    },
+    {
+      "scene": "02-situation-report",
+      "displacement_m": 0.3336,
+      "expressions": [
+        "listening",
+        "thinking",
+        "happy"
+      ],
+      "head_yaw_range_deg": 33.94,
+      "events": [
+        "response",
+        "saved"
+      ]
+    },
+    {
+      "scene": "03-organize-orders",
+      "displacement_m": 0.313,
+      "expressions": [
+        "listening",
+        "thinking",
+        "uncertain"
+      ],
+      "head_yaw_range_deg": 40,
+      "events": [
+        "response"
+      ]
+    },
+    {
+      "scene": "04-warning-stop",
+      "displacement_m": 0.33,
+      "expressions": [
+        "listening",
+        "alert",
+        "idle"
+      ],
+      "head_yaw_range_deg": 0,
+      "events": [
+        "forward-0",
+        "moving",
+        "forward-1",
+        "forward-2",
+        "forward-3",
+        "warning",
+        "stop-verified",
+        "block",
+        "clear"
+      ]
+    },
+    {
+      "scene": "05-search-and-notify",
+      "displacement_m": 0.5557,
+      "expressions": [
+        "thinking",
+        "alert"
+      ],
+      "head_yaw_range_deg": 49.81,
+      "events": [
+        "found",
+        "tower-received"
+      ]
+    }
+  ],
   "gifs": [
     {
       "file": "01-manual-query.gif",
-      "bytes": 92796,
+      "bytes": 420205,
       "frames": 96,
       "duration_ms": 12010,
-      "distinct_frames": 96
+      "sha256": "e61f3624b2dd4e30b008f254e75e5d71d5431705d8cd58f59c1853c9dd3d8257"
     },
     {
       "file": "02-situation-report.gif",
-      "bytes": 112662,
+      "bytes": 489834,
       "frames": 96,
       "duration_ms": 12010,
-      "distinct_frames": 96
+      "sha256": "151f176706676b7f2616ef77667f17aefa44cd0ebdcf2cc9e065682e642215f6"
     },
     {
       "file": "03-organize-orders.gif",
-      "bytes": 95826,
+      "bytes": 400508,
       "frames": 96,
       "duration_ms": 12010,
-      "distinct_frames": 96
+      "sha256": "f0b98560ebd9a4e9a761dc87b4941fb61497b1a3149bba5f8e9d640d4fe77fc6"
     },
     {
       "file": "04-warning-stop.gif",
-      "bytes": 103298,
+      "bytes": 266989,
       "frames": 96,
       "duration_ms": 12010,
-      "distinct_frames": 96
+      "sha256": "ea7f8ee8ff5ff561514628b71c33d6400cf58435e18b5ac5d973bbfc8b95cdbe"
+    },
+    {
+      "file": "05-search-and-notify.gif",
+      "bytes": 275327,
+      "frames": 96,
+      "duration_ms": 12010,
+      "sha256": "076effb551ddaeb9c37ba3f8baf88790c2c5917d197e0987c8c5a1b2bb51c810"
     },
     {
       "file": "military-wallaby-overview.gif",
-      "bytes": 316674,
-      "frames": 384,
-      "duration_ms": 48010,
-      "distinct_frames": 384
+      "bytes": 1741535,
+      "frames": 480,
+      "duration_ms": 60010,
+      "sha256": "6248752089e8504f202ab4d25d2ae415d5812e98666a9ec18e897e82128c4ba1"
     }
   ]
 }
