@@ -10,6 +10,7 @@ SOURCE_FILES = (
     "model.test.mjs", "serve.py", "start.command", "package.json", "package.py",
     "voice-control.mjs", "voice-control.test.mjs", "alert.css",
     "render-layout.mjs", "render-layout.test.mjs",
+    "demo-control.mjs", "demo-control.test.mjs", "demo-render.mjs",
 )
 
 
