@@ -64,6 +64,32 @@ class AlertFlowTests(unittest.TestCase):
         self.assertEqual(first["last_result"]["id"], second["last_result"]["id"])
         self.assertEqual(len(self.engine.history()), 1)
 
+    def test_patrol_is_browser_only_and_requires_gateway_stop_acceptance(self):
+        result = self.app.turn(text="훈련구역탐색 시작해.")
+        self.assertEqual(result["motion"], "patrol")
+        self.assertEqual(result["robot"]["simulation_command"], "patrol")
+        self.assertEqual(self.gateway.robot_calls, ["stop"])
+        self.gateway.fail_robot = True
+        result = self.app.turn(text="훈련구역탐색 시작해.")
+        self.assertEqual(result["motion"], "stop")
+
+    def test_patrol_stop_does_not_wait_for_active_turn(self):
+        self.app.turn_lock.acquire()
+        try:
+            result = self.app.turn(text="훈련구역 탐색 중단해.")
+            self.assertEqual(result["motion"], "stop")
+            self.assertTrue(self.app.turn_lock.locked())
+        finally:
+            self.app.turn_lock.release()
+
+    def test_warning_blocks_patrol(self):
+        self.gateway.active, self.gateway.counter = True, 1
+        self.app.alerts()
+        result = self.app.turn(text="훈련구역탐색 시작해.")
+        self.assertIsNone(result["motion"])
+        self.assertTrue(result["blocked_by_alert"])
+        self.assertEqual(self.gateway.robot_calls, [])
+
     def test_btn4_during_model_inference_blocks_delayed_movement(self):
         entered, release = threading.Event(), threading.Event()
         original = self.engine.process

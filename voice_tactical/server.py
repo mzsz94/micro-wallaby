@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 import webbrowser
 
 from .audio import LocalTranscriber
-from .engine import Engine
+from .engine import Engine, is_immediate_command
 from .gateway import Gateway, summarize_result
 from .device_audio import DeviceAudio
 
@@ -179,11 +179,9 @@ class VoiceApp:
     def turn(self, *, text=None, audio=None, mode="auto"):
         if not isinstance(mode, str) or mode not in MODES:
             raise RequestError(400, "지원하지 않는 처리 모드입니다.")
-        # These exact UI/voice emergency phrases are already deterministic
-        # engine paths and must not wait behind a lengthy LLM inference.
-        emergency = audio is None and mode == "auto" and isinstance(text, str) and text.strip() in {
-            "왈라비 정지", "정지", "왈라비 폭발물 감지", "왈라비 경고 해제",
-        }
+        # Deterministic stop/alert phrases must not wait behind lengthy inference.
+        emergency = (audio is None and mode == "auto" and isinstance(text, str)
+                     and is_immediate_command(text))
         owns_turn = self.turn_lock.acquire(blocking=False)
         if not owns_turn and not emergency:
             raise RequestError(409, "이전 발화를 처리 중입니다. 완료 후 다시 말해 주세요.")
@@ -211,7 +209,13 @@ class VoiceApp:
                     if cancelled or (self.alert_active and result["motion"] != "stop"):
                         result["motion"] = "stop"
                         result["motion_cancelled"] = True
-                    robot = self._robot_write(result["motion"])
+                    # Patrol is a browser-only route. The deployed gateway's
+                    # existing stop command acknowledges an idle robot state;
+                    # do not invent a firmware command or drive real motors.
+                    gateway_command = "stop" if result["motion"] == "patrol" else result["motion"]
+                    robot = self._robot_write(gateway_command)
+                    if result["motion"] == "patrol":
+                        robot["simulation_command"] = "patrol"
                     result["robot"] = robot
                     if self.gateway.configured and robot.get("accepted") is not True:
                         result["motion"] = "stop"

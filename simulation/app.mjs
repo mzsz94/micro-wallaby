@@ -240,10 +240,11 @@ $('export').addEventListener('click', () => {
 });
 
 function refresh(s) {
+  const patrol = voice.patrolState;
   $('time').textContent = s.time.toFixed(2);
-  $('state').textContent = s.state;
+  $('state').textContent = patrol ? 'TRAINING_SEARCH' : s.state;
   $('state').classList.toggle('fault', ['FAULT', 'DOCK_FAILED'].includes(s.state));
-  $('reason').textContent = `${stateLabels[s.state] || ''} · ${s.reason || '명령 대기'}`;
+  $('reason').textContent = patrol ? `훈련 구역 탐색 · 지점 ${patrol.index + 1}/4 · 가상 경로 순회 / 최대 60초` : `${stateLabels[s.state] || ''} · ${s.reason || '명령 대기'}`;
   for (const [id, value, unit, places] of [
     ['linear', s.velocity.linear, 'm/s', 3], ['angular', s.velocity.angular, 'rad/s', 2],
     ['left', s.velocity.left / CONFIG.wheelRadius, 'rad/s', 2], ['right', s.velocity.right / CONFIG.wheelRadius, 'rad/s', 2],
@@ -310,6 +311,20 @@ function arena(s) {
   ctx.fillRect(0, -CONFIG.dockWidth * scale / 2, CONFIG.dockDepth * scale, CONFIG.dockWidth * scale);
   ctx.beginPath(); ctx.moveTo(-.11 * scale, -.22 * scale); ctx.lineTo(0, -.14 * scale); ctx.lineTo(0, .14 * scale); ctx.lineTo(-.11 * scale, .22 * scale); ctx.stroke(); ctx.restore();
   ctx.font = '10px monospace'; ctx.fillStyle = '#e7bf7a'; ctx.fillText('DOCK', dock[0] - 28, dock[1] - .28 * scale);
+  const patrol = voice.patrolState;
+  if (patrol) {
+    ctx.save(); ctx.beginPath();
+    patrol.route.forEach((point, index) => index ? ctx.lineTo(...xy(point.x, point.y)) : ctx.moveTo(...xy(point.x, point.y)));
+    ctx.closePath(); ctx.setLineDash([5, 5]); ctx.strokeStyle = '#85d9eb'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.setLineDash([]); ctx.font = '11px monospace';
+    patrol.route.forEach((point, index) => {
+      const position = xy(point.x, point.y);
+      ctx.fillStyle = index === patrol.index ? '#85d9eb' : '#536461';
+      ctx.beginPath(); ctx.arc(...position, index === patrol.index ? 5 : 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillText(String(index + 1), position[0] + 8, position[1] - 8);
+    });
+    ctx.restore();
+  }
   if (s.trail.length > 1) {
     ctx.beginPath(); s.trail.forEach((p, i) => i ? ctx.lineTo(...xy(p.x, p.y)) : ctx.moveTo(...xy(p.x, p.y)));
     ctx.strokeStyle = '#8bd6b878'; ctx.lineWidth = 2; ctx.stroke();

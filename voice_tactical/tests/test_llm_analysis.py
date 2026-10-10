@@ -70,6 +70,8 @@ class LocalAnalysisTests(unittest.TestCase):
     def test_emergency_paths_do_not_wait_for_llm(self):
         with patch.object(self.engine, "_llm_analysis") as call:
             self.assertEqual(self.engine.process("왈라비 정지")["motion"], "stop")
+            self.assertEqual(self.engine.process("훈련구역탐색 시작해.")["motion"], "patrol")
+            self.assertEqual(self.engine.process("탐색 중지")["motion"], "stop")
             self.assertEqual(self.engine.record_device_alert(True, 3)["motion"], "stop")
             call.assert_not_called()
 

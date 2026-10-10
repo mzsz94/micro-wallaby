@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Exercise transcript correction against an isolated real HTTP server/database.
+// Exercise correction and voice-driven search against a real isolated server/model.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -63,9 +63,45 @@ try {
   assert.equal(after.length, 2);
   assert.ok(after.some(record => record.id === before[0].id && record.transcript === original));
   assert.ok(after.some(record => record.transcript === corrected && record.kind === 'report' && record.motion === null));
+  const simulator = page.frameLocator('#simulator');
+  await page.selectOption('#mode', 'auto');
+  await page.fill('#text-input', '훈련구역탐색 시작해.');
+  await page.click('#send-text');
+  await page.waitForFunction(() => document.getElementById('sim-status').textContent.includes('훈련 구역 탐색 실행'));
+  await simulator.locator('#state').waitFor();
+  await page.waitForFunction(() => document.getElementById('simulator').contentDocument.getElementById('state').textContent === 'TRAINING_SEARCH');
+  await page.waitForFunction(() => parseFloat(document.getElementById('simulator').contentDocument.getElementById('linear').textContent) > .05);
+  await delay(1800);
+  const pose = await simulator.locator('#pose').textContent();
+  assert.notEqual(pose, 'X 1.00 m   Y 1.20 m   θ 0.0°');
+  assert.notEqual(await simulator.locator('#headYaw-value').textContent(), '0°');
+  assert.ok((await page.textContent('#answer')).includes('네 지점'));
+  await page.click('#sim-stop');
+  await page.waitForFunction(() => document.getElementById('simulator').contentDocument.getElementById('state').textContent === 'IDLE');
+  const stoppedPose = await simulator.locator('#pose').textContent();
+  await delay(1000);
+  assert.equal(await simulator.locator('#pose').textContent(), stoppedPose);
+  await page.selectOption('#mode', 'query');
+  await page.fill('#text-input', '훈련구역탐색 시작해.');
+  await page.click('#send-text');
+  await page.waitForFunction(() => document.getElementById('answer').textContent.includes('자동 분류'));
+  assert.equal(await simulator.locator('#state').textContent(), 'IDLE');
+  await page.selectOption('#mode', 'auto');
+  await page.click('#send-text');
+  await page.waitForFunction(() => document.getElementById('simulator').contentDocument.getElementById('state').textContent === 'TRAINING_SEARCH');
+  await page.click('#trigger-alert');
+  await page.waitForFunction(() => document.getElementById('simulator').contentDocument.getElementById('state').textContent === 'IDLE');
+  assert.equal(await simulator.locator('.voice-alert-banner').isVisible(), true);
+  await page.click('#clear-alert');
+  await page.waitForFunction(() => !document.getElementById('clear-alert').disabled && !document.getElementById('send-text').disabled);
+  await page.uncheck('#motion-enabled');
+  await page.click('#send-text');
+  await page.waitForFunction(() => document.getElementById('notice').textContent.includes('동작 시뮬레이션이 꺼져'));
+  assert.equal(await simulator.locator('#state').textContent(), 'IDLE');
   assert.deepEqual(errors, []);
   assert.deepEqual(external, []);
   console.log('PASS: review copies the transcript, preserves report mode and original history, and saves only after explicit resubmission.');
+  console.log('PASS: exact training-search input moves the model and scanning joints; stop/alert halt it, and explicit query/disabled motion never drive.');
 } finally {
   await browser?.close();
   server.kill('SIGTERM');

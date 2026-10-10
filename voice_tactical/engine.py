@@ -48,7 +48,11 @@ def _motion(text: str) -> str | None:
     # negatives, questions, compound actions, and mentions inside a report.
     body = _body(text).strip(" .!。")
     patterns = {
-        "stop": r"(?:정지|멈춰|멈추어|그만)(?:해|줘|해줘|하세요|해 주세요| 주세요)?",
+        "stop": (r"(?:(?:훈련\s*구역\s*)?(?:탐색|순찰)\s*)?"
+                 r"(?:정지|중지|중단|멈춰|멈추어|그만)"
+                 r"(?:해|줘|해줘|해\s*줘|하세요|해\s*주세요|\s*주세요)?"),
+        "patrol": (r"(?:훈련\s*구역(?:을|에서)?\s*)?(?:탐색|순찰)(?:을)?\s*"
+                   r"(?:시작(?:해(?:\s*줘)?|하세요|해\s*주세요)?|해(?:\s*줘)?|하세요|해\s*주세요)?"),
         "dock": r"(?:충전(?:소로)?(?: 복귀)?|집으로|도킹)(?: 가| 돌아가|해|해줘|해 줘|하세요|해 주세요)?",
         "greet": r"인사(?:해|해줘|해 줘|하세요|해 주세요)?",
         "forward": r"(?:앞으로|전진)(?: 가| 이동|해|해줘|해 줘|하세요|해 주세요)?",
@@ -66,6 +70,11 @@ def _alert(text: str) -> bool | None:
     if re.fullmatch(r"(?:폭발물\s*)?경고\s*(?:해제|꺼)(?:해|해줘|해 줘)?", body):
         return False
     return None
+
+
+def is_immediate_command(text: str) -> bool:
+    """Recognize the same bounded stop/alert grammar without model inference."""
+    return _motion(text) == "stop" or _alert(text) is not None
 
 
 def _clauses(text: str) -> list[str]:
@@ -456,8 +465,15 @@ class Engine:
                 result["alert"]["event_counter"] = event_counter
             result["answer"] = ("폭발물 감지 시연: 왈라비를 정지하고 NU40 경고음을 요청합니다. 실제 센서 판정은 아닙니다." if alarm else "경고 해제를 요청합니다. NU40 처리 결과를 확인하세요.")
         elif kind == "motion":
-            names = {"stop": "정지", "dock": "충전소 복귀", "greet": "인사", "forward": "전진", "back": "후진", "left": "왼쪽 회전", "right": "오른쪽 회전"}
+            names = {"stop": "정지", "patrol": "훈련 구역 탐색", "dock": "충전소 복귀",
+                     "greet": "인사", "forward": "전진", "back": "후진",
+                     "left": "왼쪽 회전", "right": "오른쪽 회전"}
             result["answer"] = f"왈라비 시뮬레이션: {names[motion]} 명령을 전달합니다."
+            if motion == "patrol":
+                result["motion_scope"] = "simulation"
+                result["answer"] = ("훈련 구역 탐색 시뮬레이션을 시작합니다. "
+                                    "네 지점을 순회하며 머리를 좌우로 살핍니다. "
+                                    "완료하거나 60초가 지나면 정지합니다. '탐색 중지'로 멈출 수 있습니다.")
             if self.alert_active and motion != "stop":
                 result["motion"] = None
                 result["blocked_by_alert"] = True
@@ -474,6 +490,9 @@ class Engine:
             result["records"] = self.search(query)
             result["query"] = query
             result["answer"] = f"저장된 기록 {len(result['records'])}건을 찾았습니다."
+        elif kind == "query" and _motion(text):
+            result["answer"] = ("현재 교범 질의 모드이므로 동작을 실행하지 않았습니다. "
+                                "처리 모드를 '자동 분류'로 바꾸고 명령을 다시 보내세요.")
         else:
             sources = self._retrieve(body)
             result["sources"] = sources
@@ -487,7 +506,7 @@ class Engine:
                         result["engine"] = "local-llm-evidence"
                     except (OSError, URLError, ValueError, KeyError, IndexError, TypeError, AttributeError):
                         result["llm_fallback"] = "로컬 모델의 응답을 확인할 수 없어 교범 원문으로 답합니다."
-        if self.llm_url and kind in {"report", "orders", "motion"} and motion != "stop" and not result.get("blocked_by_alert"):
+        if self.llm_url and kind in {"report", "orders", "motion"} and motion not in {"stop", "patrol"} and not result.get("blocked_by_alert"):
             try:
                 analysis = self._llm_analysis(text, kind, motion)
                 result["analysis"] = analysis

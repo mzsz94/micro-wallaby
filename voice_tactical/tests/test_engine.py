@@ -37,6 +37,30 @@ class EngineTests(unittest.TestCase):
         self.assertIn("공식 교범이 아닙니다", result["answer"])
         self.assertIsNone(result["report"])
 
+    def test_training_search_commands_match_spacing_and_spoken_suffixes(self):
+        for text in ("훈련구역탐색 시작해.", "훈련 구역 탐색을 시작해",
+                     "왈라비, 훈련 구역 탐색 시작해 줘!", "훈련 구역을 탐색해",
+                     "탐색 시작", "순찰해 주세요"):
+            with self.subTest(text=text):
+                result = self.engine.process(text)
+                self.assertEqual((result["kind"], result["motion"]), ("motion", "patrol"))
+                self.assertEqual(result["motion_scope"], "simulation")
+                self.assertEqual(result["sources"], [])
+        for text in ("탐색 중지", "훈련구역 탐색 중단해", "왈라비 순찰 정지해"):
+            self.assertEqual(self.engine.process(text)["motion"], "stop")
+
+    def test_training_search_never_dispatches_questions_reports_or_negations(self):
+        for text in ("훈련구역탐색 시작해?", "훈련 구역 탐색하지 마", "탐색 시작하지 마",
+                     '"훈련구역탐색 시작해"라고 말했다', "탐색 시작해 그리고 전진해",
+                     "상황 보고. 훈련구역탐색 시작해.", "명령 정리. 훈련구역탐색 시작해."):
+            with self.subTest(text=text):
+                self.assertIsNone(self.engine.process(text)["motion"])
+        for mode in ("report", "orders", "query", "search"):
+            result = self.engine.process("훈련구역탐색 시작해.", mode=mode)
+            self.assertIsNone(result["motion"])
+            if mode == "query":
+                self.assertIn("자동 분류", result["answer"])
+
     def test_report_fields_preserve_evidence_and_missing_facts(self):
         text = "왈라비 상황 보고 인원: 3명, 위치: 북문, 시각: 14시 20분, 활동: 장비 점검 중, 조치: 점검 완료, 요청: 배터리 지원"
         result = self.engine.process(text)

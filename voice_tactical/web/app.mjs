@@ -41,8 +41,8 @@ window.addEventListener('message', event => {
     $('simulator').contentWindow?.postMessage({ type: 'wallaby-alert', active: alertActive }, location.origin);
   }
   if (event.data.type === 'wallaby-voice-result') {
-    const names = { stop: '정지', greet: '인사', dock: '도킹', forward: '전진', back: '후진', left: '좌회전', right: '우회전' };
-    $('sim-status').textContent = `${names[event.data.command] || '명령'} ${event.data.accepted ? '실행' : '거부 · 상태 확인'}`;
+    const names = { stop: '정지', patrol: '훈련 구역 탐색', greet: '인사', dock: '도킹', forward: '전진', back: '후진', left: '좌회전', right: '우회전' };
+    $('sim-status').textContent = event.data.reason === 'patrol complete' ? '훈련 구역 탐색 완료 · 정지' : `${names[event.data.command] || '명령'} ${event.data.accepted ? '실행' : '거부 · 상태 확인'}`;
   }
 });
 $('simulator').addEventListener('load', () => {
@@ -317,7 +317,15 @@ function renderResult(result) {
   if (result.sources?.length) $('sources').append(node('p', '참고한 로컬 자료', 'source-heading'));
   for (const source of result.sources || []) { const card = node('div', undefined, 'source-card'); card.append(node('h4', source.title || source.id), node('p', source.excerpt || source.text || '')); $('sources').append(card); }
   $('device-result').textContent = result.device ? (result.device.acknowledged ? result.kind === 'alert' ? `NU40 스피커 경보 ${result.device.active ? '활성화' : '해제'} 출력 ACK 수신` : '키트 OLED 드라이버 ACK 수신 · 실제 화면은 별도 확인하세요.' : `제어탑 출력 미확인: ${result.device.error || result.device.message || '상태를 확인하세요.'}`) : '';
-  if (result.robot) $('device-result').textContent += result.robot.mode === 'local-simulation' ? '\nNU87 미연결 · 로컬 동작 시뮬레이션' : result.robot.accepted ? `\nNU87 명령 수락 · ${result.robot.state || result.robot.command} · 동작은 시뮬레이션으로 표시` : `\nNU87 명령 미확인 · ${result.robot.error || '동작 정지'}`;
+  if (result.robot) {
+    const robot = result.robot;
+    let message;
+    if (robot.mode === 'local-simulation') message = 'NU87 미연결 · 로컬 동작 시뮬레이션';
+    else if (!robot.accepted) message = `NU87 명령 미확인 · ${robot.error || '동작 정지'}`;
+    else if (robot.simulation_command === 'patrol') message = 'NU87 정지 명령 수락 · 훈련 구역 탐색은 브라우저 시뮬레이션';
+    else message = `NU87 명령 수락 · ${robot.state || robot.command} · 동작은 시뮬레이션으로 표시`;
+    $('device-result').textContent += '\n' + message;
+  }
   updateVoices();
   updateControls();
 }
@@ -333,7 +341,12 @@ async function applyResult(result, token) {
   }
   renderResult(result);
   notice(`${kinds[result.kind] || '발화'} 처리가 완료되었습니다. 추출 내용과 근거를 확인하세요.`);
-  if (result.motion && (result.motion === 'stop' || (!alertActive && $('motion-enabled').checked)) && !document.hidden && document.hasFocus()) postMotion(result.motion);
+  if (result.motion === 'stop') postMotion('stop');
+  else if (result.motion && !alertActive) {
+    if (!$('motion-enabled').checked) notice('동작 시뮬레이션이 꺼져 있어 실행하지 않았습니다. 체크한 뒤 명령을 다시 보내세요.');
+    else if (document.hidden || !document.hasFocus()) notice('화면이 활성화돼 있지 않아 동작을 실행하지 않았습니다. 이 화면에서 명령을 다시 보내세요.');
+    else postMotion(result.motion);
+  }
   refreshRecords();
   if ($('tts-enabled').checked && !alertActive) await speak(result.answer, token);
 }
