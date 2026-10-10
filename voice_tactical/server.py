@@ -239,6 +239,7 @@ class VoiceHandler(BaseHTTPRequestHandler):
     app: VoiceApp
     web_root = ROOT / "web"
     simulation_root = ROOT.parent / "simulation"
+    demo_root = ROOT.parent / "docs" / "demo"
 
     def setup(self):
         super().setup()
@@ -356,7 +357,13 @@ class VoiceHandler(BaseHTTPRequestHandler):
         raise RequestError(404, "API를 찾을 수 없습니다.")
 
     def _asset(self, path):
-        if path.startswith("/simulation/"):
+        if path in {"/demo", "/demo/"} or path.startswith("/demo/"):
+            root = self.demo_root
+            relative = path[len("/demo/"):] or "stage.html"
+            if relative not in {"stage.html", "stage.css", "stage.mjs", "choreography.mjs",
+                                "player.mjs", "player.css"}:
+                raise RequestError(404, "파일을 찾을 수 없습니다.")
+        elif path.startswith("/simulation/"):
             root, relative = self.simulation_root, path[len("/simulation/"):]
         else:
             root = self.web_root

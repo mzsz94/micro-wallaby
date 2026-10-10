@@ -95,12 +95,17 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(self.request("GET", path)[0], 404)
 
     def test_offline_assets_and_no_cors(self):
-        for path in ("/", "/simulation/", "/simulation/model.mjs"):
+        for path in ("/", "/simulation/", "/simulation/model.mjs", "/demo/", "/demo/player.mjs"):
             status, body, headers = self.request("GET", path)
             self.assertEqual(status, 200, path)
             self.assertTrue(body)
             self.assertNotIn("Access-Control-Allow-Origin", headers)
             self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
+
+    def test_demo_serves_only_browser_assets(self):
+        for path in ("/demo/record.mjs", "/demo/voice-check.json", "/demo/README.md",
+                     "/demo/%2e%2e/server.py", "/demo/../military-wallaby-report.md"):
+            self.assertEqual(self.request("GET", path)[0], 404, path)
 
 
 if __name__ == "__main__":
