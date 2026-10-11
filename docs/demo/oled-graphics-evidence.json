@@ -1,0 +1,417 @@
+{
+  "schema": "military-wallaby-oled-graphics-bench/v1",
+  "checked_at": "2026-10-11T02:40:27.560Z",
+  "firmware": {
+    "nu40": {
+      "application": "military-wallaby NU40 voice",
+      "version": "0.2.0",
+      "boot_record": {
+        "firmware": 3,
+        "graphics": "WG1",
+        "oled_init": 0
+      },
+      "provisioning": "USB factory UF2 after local backup; NU40 then powered by a USB power bank",
+      "authenticated_ble_smp_image_status": {
+        "images": [
+          {
+            "slot": 0,
+            "version": "0.2.0",
+            "hash": "543863dfe6a4f89f3e0895ca75fa45de3f95511ee2111eb630260104acfa41e8",
+            "bootable": true,
+            "pending": false,
+            "confirmed": true,
+            "active": true,
+            "permanent": false
+          }
+        ],
+        "splitStatus": 0
+      }
+    },
+    "nu87": {
+      "application": "NU87 Wi-Fi/BLE gateway with real I2C IMU",
+      "zephyr_revision": "e70694102ad6f910485155a824c5483daf605a9f",
+      "power": "PC USB",
+      "app_sha256": "a3884b0cb96f0fd307e520dba28da53cd1bbd066848005121e1904098bcdd56d",
+      "upload_evidence": "Vendor confirmed upload; no independent flash readback"
+    }
+  },
+  "software": {
+    "python_tests": 134,
+    "javascript_tests": 52,
+    "nu40_sanitizer_and_provision_tests": 3,
+    "real_browser_check_passed": true
+  },
+  "user_observation": {
+    "source": "User response in this session",
+    "face_visible_and_reacts_to_physical_tilt": true,
+    "response": "얼굴이 보이고 기울이면 반응함",
+    "horizon_pixels_separately_observed": false
+  },
+  "recording": {
+    "real_time": true,
+    "duration_seconds": 26.32,
+    "generated_sensor_values": false,
+    "staged_speech": false,
+    "sensor_stationary_during_ui_check": true,
+    "scope": "Browser capture of actual I2C measurements and OLED ACKs, not a camera feed of the physical display. Patrol and manual drive operate the virtual model. No new tilt-warning run is claimed by this recording.",
+    "files": {
+      "docs/demo/media/08-oled-graphics.gif": {
+        "bytes": 5620796,
+        "sha256": "04d5165ca2e2ce83836ca7664d1d9c4a26e591467831607ce3379533c6c625a8"
+      },
+      "docs/demo/media/military-wallaby-oled-graphics.mp4": {
+        "bytes": 908065,
+        "sha256": "6ffdb010d215fc25a258f340cd1ef618d12f28e1acc8d336fa5ef373d5ee7226"
+      }
+    }
+  },
+  "virtual_patrol": {
+    "start_pose": "X 1.00 m   Y 1.20 m   θ 0.0°",
+    "end_pose": "X 1.67 m   Y 1.20 m   θ 5.0°",
+    "changed": true
+  },
+  "manual_drive": {
+    "start_pose": "X 1.68 m   Y 1.20 m   θ 23.2°",
+    "end_pose": "X 1.75 m   Y 1.23 m   θ 23.2°",
+    "changed": true
+  },
+  "space_stop_checked": true,
+  "browser_errors": [],
+  "checkpoints": [
+    {
+      "kind": "reference",
+      "at": "2026-10-11T02:40:06.180Z",
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 82989,
+        "ageMs": 15,
+        "uptimeMs": 1022927,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          -27,
+          -4,
+          1047
+        ],
+        "gyroMdps": [
+          988,
+          -4165,
+          -1470
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -0.21889398570048435,
+        "pitch": 1.4772034158583016,
+        "tilt": 0.033832525560033626,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        -0.026350306044317134,
+        -0.00396841958498752,
+        0.9996448934583563
+      ],
+      "oled": {
+        "ok": true,
+        "configured": true,
+        "available": true,
+        "protocol": "nu40-kit-display",
+        "acknowledged": true,
+        "verification": "gateway-matching-ack",
+        "visual_verified": false,
+        "columns": 21,
+        "rows": 4,
+        "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+        "text": "@WG1 F L\n0 1 0\n82989",
+        "sample": 82989,
+        "at": 1791686405.9522536,
+        "scene": {
+          "protocol": "WG1",
+          "view": "face",
+          "state": "L",
+          "roll": 0,
+          "pitch": 1,
+          "tilt": 0,
+          "sample": 82989,
+          "source": "nu87-i2c",
+          "attitude_valid": true,
+          "motion": null
+        }
+      },
+      "motion_blocked": false
+    },
+    {
+      "kind": "face",
+      "at": "2026-10-11T02:40:08.195Z",
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 83179,
+        "ageMs": 23,
+        "uptimeMs": 1025270,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          -29,
+          -4,
+          1048
+        ],
+        "gyroMdps": [
+          988,
+          -4182,
+          -1496
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -0.21868511942297855,
+        "pitch": 1.5850587812267203,
+        "tilt": 0.07563228471961318,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        -0.026350306044317134,
+        -0.00396841958498752,
+        0.9996448934583563
+      ],
+      "oled": {
+        "ok": true,
+        "configured": true,
+        "available": true,
+        "protocol": "nu40-kit-display",
+        "acknowledged": true,
+        "verification": "gateway-matching-ack",
+        "visual_verified": false,
+        "columns": 21,
+        "rows": 4,
+        "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+        "text": "@WG1 F L\n0 2 0\n83179",
+        "sample": 83179,
+        "at": 1791686408.1016526,
+        "scene": {
+          "protocol": "WG1",
+          "view": "face",
+          "state": "L",
+          "roll": 0,
+          "pitch": 2,
+          "tilt": 0,
+          "sample": 83179,
+          "source": "nu87-i2c",
+          "attitude_valid": true,
+          "motion": null
+        }
+      },
+      "motion_blocked": false
+    },
+    {
+      "kind": "horizon",
+      "at": "2026-10-11T02:40:12.487Z",
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 83575,
+        "ageMs": 21,
+        "uptimeMs": 1030181,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          -28,
+          -4,
+          1047
+        ],
+        "gyroMdps": [
+          953,
+          -4261,
+          -1478
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -0.21889398570048435,
+        "pitch": 1.5318890491762203,
+        "tilt": 0.023561450732452516,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        -0.026350306044317134,
+        -0.00396841958498752,
+        0.9996448934583563
+      ],
+      "oled": {
+        "ok": true,
+        "configured": true,
+        "available": true,
+        "protocol": "nu40-kit-display",
+        "acknowledged": true,
+        "verification": "gateway-matching-ack",
+        "visual_verified": false,
+        "columns": 21,
+        "rows": 4,
+        "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+        "text": "@WG1 H L\n0 1 0\n83418",
+        "sample": 83418,
+        "at": 1791686412.3044438,
+        "scene": {
+          "protocol": "WG1",
+          "view": "horizon",
+          "state": "L",
+          "roll": 0,
+          "pitch": 1,
+          "tilt": 0,
+          "sample": 83418,
+          "source": "nu87-i2c",
+          "attitude_valid": true,
+          "motion": null
+        }
+      },
+      "motion_blocked": false
+    },
+    {
+      "kind": "text",
+      "at": "2026-10-11T02:40:15.684Z",
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 83749,
+        "ageMs": 17,
+        "uptimeMs": 1032328,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          -29,
+          -4,
+          1050
+        ],
+        "gyroMdps": [
+          1006,
+          -4182,
+          -1513
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -0.21826858037220448,
+        "pitch": 1.582041201271046,
+        "tilt": 0.07268729996327414,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        -0.026350306044317134,
+        -0.00396841958498752,
+        0.9996448934583563
+      ],
+      "oled": {
+        "ok": true,
+        "configured": true,
+        "available": true,
+        "protocol": "nu40-kit-display",
+        "acknowledged": true,
+        "verification": "gateway-matching-ack",
+        "visual_verified": false,
+        "columns": 21,
+        "rows": 4,
+        "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+        "text": "LIVE IMU\nR-0 P+2\nTilt 0 deg\nSeq 83749",
+        "sample": 83749,
+        "at": 1791686415.4865253,
+        "scene": null
+      },
+      "motion_blocked": false
+    },
+    {
+      "kind": "final",
+      "at": "2026-10-11T02:40:27.559Z",
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 84745,
+        "ageMs": 23,
+        "uptimeMs": 1044617,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          -30,
+          -4,
+          1050
+        ],
+        "gyroMdps": [
+          1015,
+          -4156,
+          -1496
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -0.21826858037220448,
+        "pitch": 1.6365651728150956,
+        "tilt": 0.12696148417659767,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        -0.026350306044317134,
+        -0.00396841958498752,
+        0.9996448934583563
+      ],
+      "oled": {
+        "ok": true,
+        "configured": true,
+        "available": true,
+        "protocol": "nu40-kit-display",
+        "acknowledged": true,
+        "verification": "gateway-matching-ack",
+        "visual_verified": false,
+        "columns": 21,
+        "rows": 4,
+        "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+        "text": "@WG1 F L\n0 2 0\n84638",
+        "sample": 84638,
+        "at": 1791686427.444657,
+        "scene": {
+          "protocol": "WG1",
+          "view": "face",
+          "state": "L",
+          "roll": 0,
+          "pitch": 2,
+          "tilt": 0,
+          "sample": 84638,
+          "source": "nu87-i2c",
+          "attitude_valid": true,
+          "motion": null
+        }
+      },
+      "motion_blocked": false
+    }
+  ],
+  "limits": [
+    "No real motors or absolute position/yaw measurement.",
+    "SMP image status is read-only evidence, not a complete new OTA replacement test.",
+    "Initial repeated NU87 boot logs were observed; root reset cause is not established.",
+    "Freshness remains 1.5 seconds; slow LAN requests can stop the virtual model."
+  ]
+}

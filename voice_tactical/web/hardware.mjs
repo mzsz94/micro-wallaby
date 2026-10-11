@@ -89,7 +89,11 @@ async function action(path,value={}) { try {render(await api(path,value));} catc
 $('reference').onclick=()=>action('/api/imu/reference'); $('clear').onclick=()=>action('/api/imu/clear'); $('display').onchange=()=>action('/api/imu/display',{enabled:$('display').checked});
 document.querySelectorAll('[data-view]').forEach(button=>{button.onclick=()=>action('/api/imu/display',{enabled:true,view:button.dataset.view});});
 $('patrol').onclick=async()=>{try{const result=await api('/api/turn',{text:'왈라비 훈련 구역 탐색 시작해',mode:'auto'});post('wallaby-voice-command',{command:result.motion||'stop'});$('notice').textContent=result.answer;}catch(error){$('notice').textContent=error.message;}};
-$('stop').onclick=()=>{post('wallaby-voice-command',{command:'stop'});action('/api/control/stop');};
+$('stop').onclick=async()=>{
+  post('wallaby-voice-command',{command:'stop'});
+  try { await api('/api/control/stop',{}); await poll(); }
+  catch(error) { $('notice').textContent=error.message; }
+};
 $('export').onclick=()=>{if(!latest)return;const blob=new Blob([JSON.stringify({schema:'military-wallaby-live-imu/v1',captured_at:new Date().toISOString(),...latest},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='wallaby-live-imu.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||event.origin!==location.origin)return;if(event.data?.type==='wallaby-voice-ready'){ready=true;$('sim-status').textContent='실측 자세 연동 준비';}if(event.data?.type==='wallaby-voice-result')$('sim-status').textContent=`${event.data.command} · ${event.data.accepted?'수락':'거부'}`;});
 setInterval(()=>post(ready&&!document.hidden?'wallaby-voice-heartbeat':'wallaby-voice-hello'),700);

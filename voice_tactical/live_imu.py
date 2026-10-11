@@ -38,6 +38,7 @@ class LiveImu:
         self.lock = threading.RLock()
         self.stop = threading.Event()
         self.worker = None
+        self.poller = None
         self.reference = None
         self.monitoring = False
         self.reference_samples = None
@@ -67,7 +68,13 @@ class LiveImu:
 
     def start(self):
         if self.enabled and self.worker is None:
+            # Display writes wait for a BLE ACK and can take several LAN RTTs.
+            # They must not delay sampling, calibration or stale-input checks.
+            self.poller = threading.Thread(
+                target=self._read_samples, name="live-imu-input", daemon=True
+            )
             self.worker = threading.Thread(target=self._run, name="live-imu", daemon=True)
+            self.poller.start()
             self.worker.start()
 
     def _event(self, kind, message):
@@ -305,10 +312,17 @@ class LiveImu:
                 "visual_verified": False,
             }
 
-    def _run(self):
+    def _read_samples(self):
         while not self.stop.is_set():
             try:
                 self.feed(self.gateway.imu_status())
+            except (OSError, RuntimeError, ValueError):
+                self.feed(None)
+            self.stop.wait(0.12)
+
+    def _run(self):
+        while not self.stop.is_set():
+            try:
                 state = self.snapshot()
                 state["alarm_active"] = bool(self.engine.alert_active)
                 mode = (
@@ -348,7 +362,7 @@ class LiveImu:
                             self.virtual_motion if now < self.virtual_motion_until else "stop"
                         )
                         text, scene = scene_command(state, state["display_view"], motion)
-                    result = self.gateway.display(text)
+                    result = self.gateway.display(text, reuse_status=True)
                     with self.lock:
                         self.oled = {
                             **result,
@@ -360,5 +374,11 @@ class LiveImu:
                         }
             except (OSError, RuntimeError, ValueError) as exc:
                 with self.lock:
-                    self.error = str(exc)
+                    # A failed output does not invalidate independently received
+                    # input. Keep the error with the unacknowledged OLED result.
+                    self.oled = {
+                        "acknowledged": False,
+                        "visual_verified": False,
+                        "error": str(exc),
+                    }
             self.stop.wait(0.12)

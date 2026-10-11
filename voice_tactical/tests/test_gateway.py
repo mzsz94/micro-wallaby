@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -83,6 +84,61 @@ class GatewayTests(unittest.TestCase):
             self.assertFalse(result["capabilities"]["ota"])
         self.assertEqual(transport.calls, [])
 
+    def test_concurrent_callers_do_not_overlap_embedded_http_sessions(self):
+        first_entered = threading.Event()
+        second_started = threading.Event()
+        release = threading.Event()
+        lock = threading.Lock()
+        active = 0
+        peak = 0
+        results = []
+
+        class Connection:
+            def __init__(self, *args, **kwargs):
+                nonlocal active, peak
+                with lock:
+                    active += 1
+                    peak = max(peak, active)
+
+            def request(self, *args):
+                pass
+
+            def getresponse(self):
+                first_entered.set()
+                release.wait(2)
+                return Response(value=STATUS)
+
+            def close(self):
+                nonlocal active
+                with lock:
+                    active -= 1
+
+        gateway = self.gateway()
+
+        def second_call():
+            second_started.set()
+            results.append(gateway.status())
+
+        with patch("voice_tactical.gateway.http.client.HTTPConnection", Connection):
+            first = threading.Thread(target=lambda: results.append(gateway.status()))
+            second = threading.Thread(target=second_call)
+            first.start()
+            try:
+                self.assertTrue(first_entered.wait(2))
+                second.start()
+                self.assertTrue(second_started.wait(2))
+                # Give an unprotected second request time to enter the transport.
+                self.assertFalse(release.wait(0.05))
+            finally:
+                release.set()
+                first.join(2)
+                if second.ident is not None:
+                    second.join(2)
+        self.assertEqual(peak, 1)
+        self.assertEqual(active, 0)
+        self.assertEqual(len(results), 2)
+        self.assertTrue(all(result["ready"] for result in results))
+
     def test_numeric_lan_hosts_only(self):
         for host in ("127.0.0.1", "10.0.0.4:8081", "172.16.4.5", "192.168.0.7",
                      "::1", "[::1]:8081", "[fd12::1]:8080"):
@@ -159,6 +215,34 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(result["verification"], "gateway-matching-ack")
         self.assertEqual(transport.calls[1][3:6], ("POST", "/v1/display", b"LOCAL\nSIM: GREET"))
         self.assertTrue(all(connection.closed for connection in transport.connections))
+
+    def test_live_display_reuses_only_recent_acknowledged_status(self):
+        transport = self.transport(Response(value=STATUS), Response(value=ACK),
+                                   Response(value=ACK), Response(value=STATUS),
+                                   Response(value=ACK))
+        gateway = self.gateway()
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10):
+            self.assertTrue(gateway.display("FIRST", reuse_status=True)["acknowledged"])
+        with patch("voice_tactical.gateway.time.monotonic", return_value=11):
+            self.assertTrue(gateway.display("SECOND", reuse_status=True)["acknowledged"])
+        self.assertEqual([call[4] for call in transport.calls],
+                         ["/v1/status", "/v1/display", "/v1/display"])
+        with patch("voice_tactical.gateway.time.monotonic", return_value=15):
+            self.assertTrue(gateway.display("EXPIRED", reuse_status=True)["acknowledged"])
+        self.assertEqual([call[4] for call in transport.calls[-2:]],
+                         ["/v1/status", "/v1/display"])
+
+    def test_failed_live_ack_invalidates_cached_display_readiness(self):
+        transport = self.transport(Response(value=STATUS), Response(value=ACK),
+                                   Response(422, {"error": -128}),
+                                   Response(value={**STATUS, "connected": False}))
+        gateway = self.gateway()
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10):
+            self.assertTrue(gateway.display("FIRST", reuse_status=True)["acknowledged"])
+            self.assertFalse(gateway.display("FAILED", reuse_status=True)["acknowledged"])
+            self.assertEqual(gateway.display("RECHECK", reuse_status=True)["code"], "not_ready")
+        self.assertEqual([call[4] for call in transport.calls],
+                         ["/v1/status", "/v1/display", "/v1/display", "/v1/status"])
 
     def test_failed_or_malformed_ack_is_never_success_and_never_retried(self):
         for response in (Response(202, ACK), Response(422, {"error": -110}),

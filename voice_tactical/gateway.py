@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import threading
+import time
 
 KIT_PROTOCOL = "nu40-kit-display"
 _ADDRESS = re.compile(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\Z")
@@ -139,6 +140,11 @@ class Gateway:
         self._token = token
         self.timeout = float(timeout)
         self._lock = threading.Lock()
+        # The embedded HTTP listener serves one socket at a time. Let input
+        # polling run between output requests, without overlapping TCP sessions.
+        self._http_lock = threading.Lock()
+        self._display_status = None
+        self._display_status_until = 0
 
     @property
     def configured(self) -> bool:
@@ -150,11 +156,19 @@ class Gateway:
                 "peer_configured": False, "capabilities": dict(_LIMITATIONS)}
 
     def _failure(self, error: _GatewayError) -> dict:
+        self._display_status_until = 0
         return {**self._base(), "ok": False, "acknowledged": False,
                 "code": error.code, "error": str(error), "visual_verified": False}
 
     def _request(self, method: str, path: str, body: bytes | None = None,
                  *, expected_status: int = 200, binary: bool = False, limit: int = 4096) -> dict | bytes:
+        with self._http_lock:
+            return self._request_once(method, path, body, expected_status=expected_status,
+                                      binary=binary, limit=limit)
+
+    def _request_once(self, method: str, path: str, body: bytes | None = None,
+                      *, expected_status: int = 200, binary: bool = False,
+                      limit: int = 4096) -> dict | bytes:
         if not self.configured:
             raise _GatewayError("disabled", "NU87 gateway is disabled; configure its IP and local token to enable it.")
         # HTTPConnection ignores proxy environment variables and never follows
@@ -229,8 +243,12 @@ class Gateway:
             return {"configured": False, "ready": False, "fresh": False,
                     "source": "nu87-i2c", "error": str(error)}
 
-    def _require_kit(self, *, display: bool = False) -> dict:
-        state = self.status()
+    def _require_kit(self, *, display: bool = False, reuse_status: bool = False) -> dict:
+        state = (
+            self._display_status
+            if display and reuse_status and time.monotonic() < self._display_status_until
+            else self.status()
+        )
         if not state["ok"]:
             raise _GatewayError(state["code"], state["error"])
         if display and not state["ready"]:
@@ -260,6 +278,7 @@ class Gateway:
             if not isinstance(address, str) or not _ADDRESS.fullmatch(address) or address_type not in ("random", "public"):
                 raise _GatewayError("invalid_peer", "Choose a Bluetooth MAC address and its public or random address type.")
             with self._lock:
+                self._display_status_until = 0
                 self._require_kit()
                 data = self._request("POST", "/v1/peer", (address.upper() + " " + address_type).encode("ascii"),
                                      expected_status=202)
@@ -271,15 +290,20 @@ class Gateway:
         except _GatewayError as error:
             return {**self._failure(error), "accepted": False}
 
-    def display(self, text: str) -> dict:
+    def display(self, text: str, *, reuse_status: bool = False) -> dict:
         try:
             _validate_text(text)
             with self._lock:
-                self._require_kit(display=True)
+                state = self._require_kit(display=True, reuse_status=reuse_status)
                 data = self._request("POST", "/v1/display", text.encode("ascii"))
                 if (data.get("ready") is not True or type(data.get("columns")) is not int or data["columns"] != 21 or
                         type(data.get("rows")) is not int or data["rows"] != 4 or data.get("dfuCapable") is not False):
                     raise _GatewayError("unconfirmed_ack", "NU87 did not confirm a successful KIT display ACK.")
+                # Only a matching ACK renews this short protocol/readiness cache.
+                # The live sensor loop avoids an extra HTTP RTT per OLED update;
+                # ordinary/manual writes still perform their status preflight.
+                self._display_status = state
+                self._display_status_until = time.monotonic() + 3
             return {"ok": True, "configured": True, "available": True, "protocol": KIT_PROTOCOL,
                     "acknowledged": True, "verification": "gateway-matching-ack", "visual_verified": False,
                     "columns": 21, "rows": 4, "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately."}

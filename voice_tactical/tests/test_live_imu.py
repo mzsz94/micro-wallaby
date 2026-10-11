@@ -3,6 +3,7 @@
 import math
 from pathlib import Path
 import tempfile
+import threading
 import unittest
 
 from voice_tactical.engine import Engine
@@ -176,7 +177,45 @@ class LiveImuTests(unittest.TestCase):
         disabled = LiveImu(None, self.engine)
         disabled.start()
         self.assertIsNone(disabled.worker)
+        self.assertIsNone(disabled.poller)
         self.assertFalse(disabled.snapshot()["motion_blocked"])
+
+    def test_slow_oled_ack_does_not_pause_real_input_polling(self):
+        output_started = threading.Event()
+        release_output = threading.Event()
+        input_advanced = threading.Event()
+
+        class SlowOutputGateway:
+            sequence = 0
+
+            def imu_status(self):
+                self.sequence += 1
+                if output_started.is_set() and self.sequence >= 4:
+                    input_advanced.set()
+                return packet(self.sequence)
+
+            def display(self, text, **kwargs):
+                output_started.set()
+                release_output.wait(3)
+                return {"acknowledged": True}
+
+            def robot_command(self, command):
+                return {"accepted": True}
+
+        live = LiveImu(SlowOutputGateway(), self.engine, enabled=True)
+        live.start()
+        try:
+            self.assertTrue(output_started.wait(2), "The output worker must attempt a display.")
+            self.assertTrue(input_advanced.wait(2), "Input must advance before the ACK returns.")
+            state = live.snapshot()
+            self.assertTrue(state["fresh"])
+            self.assertGreaterEqual(state["packet"]["sample"], 3)
+            self.assertFalse(release_output.is_set())
+        finally:
+            live.stop.set()
+            release_output.set()
+            live.worker.join(2)
+            live.poller.join(2)
 
     def test_history_is_bounded(self):
         for seq in range(1, 150):
