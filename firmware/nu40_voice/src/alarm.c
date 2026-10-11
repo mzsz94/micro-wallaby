@@ -6,6 +6,7 @@
 #include <zephyr/drivers/i2s.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/atomic.h>
 #include "alarm.h"
 #include "voice.h"
 #include "alarm_button.h"
@@ -31,6 +32,12 @@ struct alarm_ack { struct bt_conn *conn; uint8_t bytes[8]; };
 K_MSGQ_DEFINE(requests,sizeof(struct alarm_request),2,4);
 K_MSGQ_DEFINE(acks,sizeof(struct alarm_ack),4,4);
 static bool latched,tone_running;
+static atomic_t visible_alarm;
+
+bool alarm_is_active(void)
+{
+ return atomic_get(&visible_alarm) != 0;
+}
 static uint8_t last_source,last_status;
 static uint32_t last_sequence;
 static uint32_t tone_frame;
@@ -103,6 +110,7 @@ static void apply_alarm(bool on,uint32_t sequence,uint8_t source)
 {
  int ret=0;
  latched=on;last_source=source;last_sequence=sequence;
+ atomic_set(&visible_alarm,on);
  if(on){voice_alarm_pause(true);ret=begin_tone();}
  else{silence();voice_alarm_pause(false);}
  last_status=ret?2:0;

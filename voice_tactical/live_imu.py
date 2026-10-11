@@ -8,6 +8,8 @@ import math
 import threading
 import time
 
+from .oled_scene import scene_command
+
 
 def valid_packet(packet):
     if not isinstance(packet, dict) or packet.get("source") != "nu87-i2c":
@@ -58,6 +60,10 @@ class LiveImu:
         self.display_hold_until = 0
         self.robot_stop = None
         self.was_blocked = False
+        # Keep TEXT until a compatible WG1 firmware is installed / selected.
+        self.display_view = "text"
+        self.virtual_motion = "stop"
+        self.virtual_motion_until = 0
 
     def start(self):
         if self.enabled and self.worker is None:
@@ -229,6 +235,7 @@ class LiveImu:
                 "oled": deepcopy(self.oled),
                 "error": self.error,
                 "display_enabled": self.display_enabled,
+                "display_view": self.display_view,
                 "robot_stop": deepcopy(self.robot_stop),
                 "boundary": (
                     "Actual IMU axes; gravity attitude estimate, "
@@ -265,12 +272,25 @@ class LiveImu:
             self._event("clear", "실측 자세 복귀 확인 · 기울기 경고 해제")
         return self.snapshot()
 
-    def set_display(self, enabled):
+    def set_display(self, enabled, view=None):
         if type(enabled) is not bool:
             raise ValueError("표시 설정은 true 또는 false여야 합니다.")
+        if view is not None and view not in ("text", "face", "horizon"):
+            raise ValueError("OLED 화면은 text, face, horizon 중 선택하세요.")
         with self.lock:
             self.display_enabled = enabled
+            if view is not None:
+                self.display_view = view
+            self.last_display_state = None
+            self.display_hold_until = 0
         return self.snapshot()
+
+    def set_virtual_motion(self, command):
+        """Last requested browser patrol, never a measurement of real motors."""
+        with self.lock:
+            self.virtual_motion = "patrol" if command == "patrol" else "stop"
+            self.virtual_motion_until = self.clock() + 60
+            self.last_display_state = None
 
     def hold_display(self, text, result):
         """Leave a requested voice/report summary visible between live updates."""
@@ -290,8 +310,11 @@ class LiveImu:
             try:
                 self.feed(self.gateway.imu_status())
                 state = self.snapshot()
+                state["alarm_active"] = bool(self.engine.alert_active)
                 mode = (
-                    "TILT - STOP"
+                    "SIM ALERT"
+                    if state["alarm_active"]
+                    else "TILT - STOP"
                     if state["tilt_latched"]
                     else "LIVE IMU"
                     if state["fresh"]
@@ -302,6 +325,7 @@ class LiveImu:
                     result = self.gateway.robot_command("stop")
                     with self.lock:
                         self.robot_stop = result
+                        self.virtual_motion = "stop"
                 self.was_blocked = state["motion_blocked"]
                 can_display = now >= self.display_hold_until or mode != "LIVE IMU"
                 if (
@@ -318,6 +342,12 @@ class LiveImu:
                         )
                     else:
                         text = f"{mode}\nNo valid attitude\nCheck IMU / WiFi"
+                    scene = None
+                    if state["display_view"] != "text":
+                        motion = (
+                            self.virtual_motion if now < self.virtual_motion_until else "stop"
+                        )
+                        text, scene = scene_command(state, state["display_view"], motion)
                     result = self.gateway.display(text)
                     with self.lock:
                         self.oled = {
@@ -326,6 +356,7 @@ class LiveImu:
                             "sample": state["packet"]["sample"] if state["packet"] else None,
                             "at": time.time(),
                             "visual_verified": False,
+                            "scene": scene,
                         }
             except (OSError, RuntimeError, ValueError) as exc:
                 with self.lock:

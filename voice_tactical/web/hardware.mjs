@@ -1,4 +1,5 @@
 import { createAttitudeView } from '/simulation/attitude-view.mjs';
+import { drawOledPreview } from '/oled-preview.mjs';
 const $ = id => document.getElementById(id);
 const attitudeView = createAttitudeView();
 let latest = null, pending = false, ready = false;
@@ -64,6 +65,8 @@ function render(s) {
   $('instruction').textContent=s.tilt_latched?'보드를 기준 자세로 돌린 뒤 경고 해제를 누르세요.':s.reference?'천천히 기울여 보세요. 35° 이상이 0.6초 지속되면 정지합니다.':'보드를 내려놓고 ① 기준 자세 설정을 누르세요.';
   $('reference').disabled=!s.fresh||s.calibrating||s.tilt_latched; $('clear').disabled=!s.fresh||!s.tilt_latched||!s.orientation?.gravity_valid||s.orientation.tilt>15;
   $('notice').textContent=s.error||''; $('oled').textContent=s.oled.text||'아직 전송 없음'; $('ack').textContent=s.oled.acknowledged?`드라이버 ACK${s.oled.sample===null?' · 응답':` · #${s.oled.sample}`}`:'ACK 미확인'; $('display').checked=s.display_enabled;
+  document.querySelectorAll('[data-view]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.view===s.display_view));});
+  $('preview-note').hidden=!s.oled.scene;
   document.body.classList.toggle('warning',s.tilt_latched);
   const lastReference = [...s.events].reverse().find(e=>e.kind==='reference');
   const moved = lastReference && s.history.some(p=>p.at>=lastReference.at&&p.orientation?.tilt>8);
@@ -84,6 +87,7 @@ async function poll() {
 }
 async function action(path,value={}) { try {render(await api(path,value));} catch(error) {$('notice').textContent=error.message;} }
 $('reference').onclick=()=>action('/api/imu/reference'); $('clear').onclick=()=>action('/api/imu/clear'); $('display').onchange=()=>action('/api/imu/display',{enabled:$('display').checked});
+document.querySelectorAll('[data-view]').forEach(button=>{button.onclick=()=>action('/api/imu/display',{enabled:true,view:button.dataset.view});});
 $('patrol').onclick=async()=>{try{const result=await api('/api/turn',{text:'왈라비 훈련 구역 탐색 시작해',mode:'auto'});post('wallaby-voice-command',{command:result.motion||'stop'});$('notice').textContent=result.answer;}catch(error){$('notice').textContent=error.message;}};
 $('stop').onclick=()=>{post('wallaby-voice-command',{command:'stop'});action('/api/control/stop');};
 $('export').onclick=()=>{if(!latest)return;const blob=new Blob([JSON.stringify({schema:'military-wallaby-live-imu/v1',captured_at:new Date().toISOString(),...latest},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='wallaby-live-imu.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
@@ -93,6 +97,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)post('walla
 setInterval(poll,180); poll();
 function animate(now) {
   if(latest) drawAttitude(latest, attitudeView.tick(now));
+  drawOledPreview($('oled-preview'), latest?.oled.scene, now);
   requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);

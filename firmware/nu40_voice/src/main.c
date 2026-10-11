@@ -19,6 +19,7 @@
 #include "ble_display_protocol.h"
 #include "voice.h"
 #include "alarm.h"
+#include "wallaby_graphics.h"
 
 BUILD_ASSERT(CONFIG_WALLABY_PAIRING_PASSKEY >= 0,
              "Use build.py and a private pairing code shared with NU87");
@@ -72,6 +73,50 @@ static uint32_t session;
 static atomic_t link_revision;
 static bool oled_ready;
 static uint32_t received_count, oled_writes, ack_count, error_count;
+static struct wallaby_scene scene = {.view = 'F', .state = 'X'};
+static bool scene_active;
+static uint32_t scene_received_at;
+
+static int draw_scene(void)
+{
+	uint8_t pixels[WALLABY_PIXELS];
+	char labels[4][WALLABY_LABEL_COLUMNS + 1];
+	uint32_t now = k_uptime_get_32();
+	int ret;
+	struct wallaby_scene effective = scene;
+
+	if (!oled_ready) {
+		return -ENODEV;
+	}
+	if (alarm_is_active()) {
+		effective.state = 'B';
+	}
+	if (!wallaby_scene_render(&effective,
+				 (uint32_t)(now - scene_received_at) > WALLABY_SCENE_TIMEOUT_MS,
+				 now, pixels, labels)) {
+		return -E2BIG;
+	}
+	ret = cfb_framebuffer_clear(oled, false);
+	for (int y = 0; y < 32 && ret == 0; y++) {
+		for (int x = 0; x < 64 && ret == 0; x++) {
+			if (pixels[(y / 8) * 128 + x] & (1U << (y % 8))) {
+				struct cfb_position point = {.x = x, .y = y};
+
+				ret = cfb_draw_point(oled, &point);
+			}
+		}
+	}
+	for (int row = 0; row < 4 && ret == 0; row++) {
+		ret = cfb_print(oled, labels[row], 66, row * 8);
+	}
+	if (ret == 0) {
+		ret = cfb_framebuffer_finalize(oled);
+	}
+	if (ret == 0) {
+		oled_writes++;
+	}
+	return ret;
+}
 
 static bool ack_subscribed(struct bt_conn *conn);
 
@@ -143,6 +188,10 @@ static int draw_text(const char *text)
 {
 	char lines[BLE_DISPLAY_ROWS][BLE_DISPLAY_COLUMNS + 1];
 	int ret;
+
+	if (alarm_is_active()) {
+		return draw_scene();
+	}
 
 	if (!ble_display_split_lines(text, strlen(text), lines)) {
 		return -E2BIG;
@@ -234,7 +283,25 @@ static void process_message(const struct received_text *message)
 	if (conn == NULL) {
 		return;
 	}
-	rendered = draw_text(message->text);
+	struct wallaby_scene next;
+	int parsed = wallaby_scene_parse(message->text, &next);
+
+	if (parsed < 0) {
+		rendered = -E2BIG;
+	} else if (parsed == 1) {
+		/* Repeating an old sample must not make a dead sensor look live. */
+		if (!scene_active || next.sample != scene.sample) {
+			scene_received_at = k_uptime_get_32();
+		}
+		scene = next;
+		scene_active = true;
+		rendered = draw_scene();
+	} else {
+		rendered = draw_text(message->text);
+		if (rendered == 0) {
+			scene_active = false;
+		}
+	}
 	status = rendered == 0 ? BLE_DISPLAY_OK :
 		 rendered == -E2BIG ? BLE_DISPLAY_BAD_TEXT : BLE_DISPLAY_OLED_ERROR;
 	ble_display_build_ack(message->sequence, status, ack);
@@ -308,7 +375,7 @@ int main(void)
 	const struct device *console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 	struct received_text message;
 	atomic_val_t seen_revision = -1;
-	int64_t report_at = 0;
+	int64_t report_at = 0, scene_at = 0;
 	int ret;
 
 	(void)gpio_pin_configure_dt(&amp, GPIO_OUTPUT_INACTIVE);
@@ -320,7 +387,8 @@ int main(void)
 		ret = display_blanking_off(oled);
 	}
 	oled_ready = ret == 0;
-	printk("LINK|BOOT role=military-wallaby firmware=2 oled_init=%d protocol=1 audio=1\n", ret);
+	printk("LINK|BOOT role=military-wallaby firmware=3 oled_init=%d "
+	       "protocol=1 audio=1 graphics=WG1\n", ret);
 	voice_init(&display_service.attrs[9]);
 	alarm_init(&display_service.attrs[14]);
 	(void)draw_text("MILITARY WALLABY\nNU40 PDM + OLED\nWaiting for NU87");
@@ -339,6 +407,8 @@ int main(void)
 		if (revision != seen_revision) {
 			bool connected_now;
 
+			scene_active = false;
+
 			k_spinlock_key_t key = k_spin_lock(&link_lock);
 			connected_now = peer != NULL;
 			k_spin_unlock(&link_lock, key);
@@ -353,6 +423,12 @@ int main(void)
 			process_message(&message);
 		}
 		poll_console(console);
+		if ((scene_active || alarm_is_active()) && k_uptime_get() >= scene_at) {
+			if (draw_scene() != 0) {
+				error_count++;
+			}
+			scene_at = k_uptime_get() + 120;
+		}
 		if (k_uptime_get() >= report_at) {
 			report_status();
 			report_at = k_uptime_get() + 2000;

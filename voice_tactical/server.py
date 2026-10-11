@@ -75,6 +75,7 @@ class VoiceApp:
             generation = self._command_generation
         with self._command_lock:
             robot = self._robot_write("stop")
+            self.live_imu.set_virtual_motion("stop")
         return {"stopped": True, "generation": generation, "robot": robot}
 
     def _apply_alert(self, result):
@@ -233,6 +234,8 @@ class VoiceApp:
             if self.live_imu.snapshot()["motion_blocked"] and result.get("motion") not in (None, "stop"):
                 result["motion"] = "stop"
             result["alert_active"] = self.alert_active
+            if result.get("motion"):
+                self.live_imu.set_virtual_motion(result["motion"])
             if self.auto_display and result.get("kind") != "alert":
                 # Display failure must not discard the local report or block motion forever.
                 summary = summarize_result(result)
@@ -353,7 +356,7 @@ class VoiceHandler(BaseHTTPRequestHandler):
             elif path.endswith("clear"):
                 result = self.app.live_imu.clear()
             else:
-                result = self.app.live_imu.set_display(body.get("enabled"))
+                result = self.app.live_imu.set_display(body.get("enabled"), body.get("view"))
             return self._send(200, result)
         if path == "/api/control/stop":
             self._json_body()

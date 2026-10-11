@@ -128,3 +128,15 @@ The build compiles MCUboot and the app and runs `imgtool verify` on the update.
 No physical board has been flashed by this implementation task. Verify PDM
 waveform quality, BLE throughput with Wi-Fi active, OLED rendering, audible
 BTN4 warning and complete OTA test/confirm/revert on the actual hardware.
+
+## WG1 OLED graphics
+
+Firmware 3 adds a measured face/horizon scene renderer. Three-line `@WG1` ASCII
+commands use the existing acknowledged TEXT characteristic. The local display
+expires after three seconds without a new measurement sequence. Ordinary voice
+text still renders normally; a local BTN4 training alarm has priority.
+
+See the dashboard usage in
+[OLED-GRAPHICS.md](https://github.com/mzsz94/micro-wallaby/blob/feat/military-wallaby-oled-graphics/docs/demo/OLED-GRAPHICS.md).
+The host preview is not a camera feed; driver ACK and physical visibility remain
+separate observations. The version for this upgrade is 0.2.0.

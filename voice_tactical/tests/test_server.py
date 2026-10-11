@@ -95,7 +95,7 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(self.request("GET", path)[0], 404)
 
     def test_offline_assets_and_no_cors(self):
-        for path in ("/", "/hardware.html", "/hardware.mjs", "/hardware.css", "/simulation/",
+        for path in ("/", "/hardware.html", "/hardware.mjs", "/hardware.css", "/oled-preview.mjs", "/simulation/",
                      "/simulation/model.mjs", "/simulation/attitude-view.mjs",
                      "/simulation/live-imu-control.mjs", "/demo/", "/demo/player.mjs"):
             status, body, headers = self.request("GET", path)

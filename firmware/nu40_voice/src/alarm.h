@@ -5,6 +5,7 @@
 #define ALARM_UUID_CONTROL_VAL BT_UUID_128_ENCODE(0x90e2c005,0x3c0d,0x4ef3,0x9d78,0x574cd1a64087)
 #define ALARM_UUID_ACK_VAL BT_UUID_128_ENCODE(0x90e2c006,0x3c0d,0x4ef3,0x9d78,0x574cd1a64087)
 void alarm_init(const struct bt_gatt_attr *ack_attr);
+bool alarm_is_active(void);
 void alarm_connected(struct bt_conn *conn);
 void alarm_disconnected(struct bt_conn *conn);
 void alarm_subscription(const struct bt_gatt_attr *attr,uint16_t value);

@@ -133,3 +133,5 @@ WALLABY_PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs \
 새 센서 순번·실제 경고·해제 이벤트·OLED ACK가 확인된 녹화만 `--publish`로 복사합니다.
 입력을 생성하거나 서버를 모사하지 않습니다. `WALLABY_LIVE_SECONDS`로 실제 대기 시간을
 10–600초 범위에서 지정합니다. 저장소 업로드는 녹화와 별도로 수행합니다.
+
+얼굴·수평계 OLED와 주행 공간 조작은 [OLED-GRAPHICS.md](OLED-GRAPHICS.md)를 참고하세요.
