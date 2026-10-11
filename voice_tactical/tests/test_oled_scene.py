@@ -39,6 +39,18 @@ class OledSceneTests(unittest.TestCase):
         self.assertEqual(scene["state"], "P")
         self.assertEqual(scene["motion"], "virtual-patrol-request")
 
+    def test_moving_gravity_estimate_is_distinct_from_stale_transport(self):
+        state = self.state(display_orientation=None)
+        wire, scene = scene_command(state, "face")
+        self.assertEqual(scene["state"], "U")
+        self.assertFalse(scene["attitude_valid"])
+        self.assertEqual((scene["roll"], scene["pitch"], scene["tilt"]), (0, 0, 0))
+        _validate_text(wire)
+        _, stale = scene_command({**state, "fresh": False}, "face")
+        self.assertEqual(stale["state"], "X")
+        _, alarm = scene_command({**state, "alarm_active": True}, "face")
+        self.assertEqual(alarm["state"], "B")
+
     def test_maximum_fields_wrap_and_invalid_input_rejected(self):
         s = self.state(packet={"sample": 0xffffffff}, display_orientation={
             "roll": 540, "pitch": -90, "tilt": 180, "gravity_valid": True})

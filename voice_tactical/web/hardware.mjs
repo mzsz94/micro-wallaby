@@ -61,8 +61,9 @@ function render(s) {
   for(const key of ['roll','pitch','tilt']) $(key).textContent=`${format(s.display_orientation?.[key])}°`;
   $('axes').replaceChildren();
   for(let i=0;i<3;i++) for(const key of ['accelMg','gyroMdps']) {const row=document.createElement('div'),axis=document.createElement('b');axis.textContent='XYZ'[i];row.append(axis,document.createTextNode(s.fresh?format(s.packet[key][i]/1000,3):'—'));$('axes').append(row);}
-  $('phase').textContent=s.tilt_latched?'기울기 경고 · 이동 정지':s.calibrating?'기준 자세 측정 중…':!s.fresh?'실측 연결 대기':s.reference?'자세 감시 중':'실측 연결됨 · 기준을 설정하세요';
-  $('instruction').textContent=s.tilt_latched?'보드를 기준 자세로 돌린 뒤 경고 해제를 누르세요.':s.reference?'천천히 기울여 보세요. 35° 이상이 0.6초 지속되면 정지합니다.':'보드를 내려놓고 ① 기준 자세 설정을 누르세요.';
+  const unsettled = s.fresh && !s.orientation?.gravity_valid;
+  $('phase').textContent=s.tilt_latched?'기울기 경고 · 이동 정지':s.calibrating?'기준 자세 측정 중…':!s.fresh?'실측 연결 대기':unsettled?'실측 수신 중 · 자세 계산 대기':s.reference?'자세 감시 중':'실측 연결됨 · 기준을 설정하세요';
+  $('instruction').textContent=s.tilt_latched?'보드를 기준 자세로 돌린 뒤 경고 해제를 누르세요.':unsettled?'큰 움직임이 감지됐습니다. 잠시 멈추면 중력 자세 계산이 다시 시작됩니다.':s.reference?'천천히 기울여 보세요. 35° 이상이 0.6초 지속되면 정지합니다.':'보드를 내려놓고 ① 기준 자세 설정을 누르세요.';
   $('reference').disabled=!s.fresh||s.calibrating||s.tilt_latched; $('clear').disabled=!s.fresh||!s.tilt_latched||!s.orientation?.gravity_valid||s.orientation.tilt>15;
   $('notice').textContent=s.error||''; $('oled').textContent=s.oled.text||'아직 전송 없음'; $('ack').textContent=s.oled.acknowledged?`드라이버 ACK${s.oled.sample===null?' · 응답':` · #${s.oled.sample}`}`:'ACK 미확인'; $('display').checked=s.display_enabled;
   document.querySelectorAll('[data-view]').forEach(button=>{button.setAttribute('aria-pressed',String(button.dataset.view===s.display_view));});

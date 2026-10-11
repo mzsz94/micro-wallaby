@@ -19,3 +19,18 @@ test('lost measurement clears the view instead of animating made-up motion', () 
   const view = createAttitudeView(); view.update(angle(15)); view.tick(0);
   view.update(null); assert.equal(view.tick(50), null);
 });
+test('reverse inversion remains bounded and takes the short path', () => {
+  const view = createAttitudeView();
+  view.update(angle(-179)); view.tick(0); view.update(angle(179));
+  for (let now = 16; now <= 320; now += 16) {
+    const roll = view.tick(now).roll;
+    assert.ok(roll >= -180 && roll <= 180);
+    assert.ok(Math.abs(roll) > 178);
+  }
+});
+test('presentation responds promptly while keeping raw input unchanged', () => {
+  const view = createAttitudeView(), target = angle(40);
+  view.update(angle(0)); view.tick(0); view.update(target);
+  assert.ok(view.tick(100).roll > 28);
+  assert.equal(target.roll, 40);
+});

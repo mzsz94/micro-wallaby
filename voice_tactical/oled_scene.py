@@ -12,8 +12,10 @@ def scene_command(state, view, motion="stop"):
         mode = "B"
     elif state.get("tilt_latched"):
         mode = "A"
-    elif not valid:
+    elif not state.get("fresh"):
         mode = "X"
+    elif not valid:
+        mode = "U"
     elif state.get("calibrating"):
         mode = "C"
     elif not state.get("reference"):

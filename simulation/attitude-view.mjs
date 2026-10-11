@@ -1,5 +1,5 @@
 // Presentation interpolation only. Never use this state for warning decisions.
-export function createAttitudeView({ timeConstantMs = 160 } = {}) {
+export function createAttitudeView({ timeConstantMs = 80 } = {}) {
   let target = null, current = null, previous = null;
   function update(orientation) {
     if (!orientation?.gravity_valid || !['roll', 'pitch', 'tilt'].every(key => Number.isFinite(orientation[key]))) {
@@ -17,6 +17,7 @@ export function createAttitudeView({ timeConstantMs = 160 } = {}) {
       let delta = target[key] - current[key];
       if (key === 'roll') delta = Math.atan2(Math.sin(delta * Math.PI / 180), Math.cos(delta * Math.PI / 180)) * 180 / Math.PI;
       current[key] += alpha * delta;
+      if (key === 'roll') current[key] = ((current[key] + 180) % 360 + 360) % 360 - 180;
     }
     return { ...current };
   }

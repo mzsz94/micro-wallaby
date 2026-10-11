@@ -11,6 +11,19 @@ import time
 from .oled_scene import scene_command
 
 
+def _smooth_attitude(current, target, dt):
+    """Filter presentation only; move promptly and suppress small resting jitter."""
+    for key in ("roll", "pitch", "tilt"):
+        delta = target[key] - current[key]
+        if key == "roll":
+            delta = (delta + 180) % 360 - 180
+        speed = abs(delta) / max(dt, 0.001)
+        tau = max(0.035, 0.16 / (1 + speed / 50))
+        current[key] += (1 - math.exp(-max(0, dt) / tau)) * delta
+        if key == "roll":
+            current[key] = (current[key] + 180) % 360 - 180
+
+
 def valid_packet(packet):
     if not isinstance(packet, dict) or packet.get("source") != "nu87-i2c":
         return False
@@ -62,6 +75,7 @@ class LiveImu:
         self.last_display = 0
         self.display_enabled = True
         self.last_display_state = None
+        self.last_display_sample = None
         self.display_hold_until = 0
         self.robot_stop = None
         self.was_blocked = False
@@ -162,16 +176,7 @@ class LiveImu:
                 if self.display_orientation is None or dt is None or dt > 1.5:
                     self.display_orientation = dict(self.orientation)
                 else:
-                    alpha = 1 - math.exp(-max(0, dt) / 0.24)
-                    for key in ("roll", "pitch", "tilt"):
-                        delta = self.orientation[key] - self.display_orientation[key]
-                        if key == "roll":
-                            delta = math.degrees(
-                                math.atan2(
-                                    math.sin(math.radians(delta)), math.cos(math.radians(delta))
-                                )
-                            )
-                        self.display_orientation[key] += alpha * delta
+                    _smooth_attitude(self.display_orientation, self.orientation, dt)
             else:
                 self.over_since = None
                 self.orientation = {
@@ -264,6 +269,7 @@ class LiveImu:
                 "error": self.error,
                 "display_enabled": self.display_enabled,
                 "display_view": self.display_view,
+                "display_interval_ms": 1200 if self.display_view == "text" else 300,
                 "robot_stop": deepcopy(self.robot_stop),
                 "boundary": (
                     "Actual IMU axes; gravity attitude estimate, "
@@ -341,6 +347,13 @@ class LiveImu:
                 self.feed(None)
             self.stop.wait(0.12)
 
+    def _display_due(self, state, mode, now):
+        interval = 1.2 if state["display_view"] == "text" else 0.3
+        sample = (state.get("packet") or {}).get("sample")
+        return mode != self.last_display_state or (
+            now - self.last_display >= interval and sample != self.last_display_sample
+        )
+
     def _run(self):
         while not self.stop.is_set():
             try:
@@ -351,6 +364,8 @@ class LiveImu:
                     if state["alarm_active"]
                     else "TILT - STOP"
                     if state["tilt_latched"]
+                    else "IMU MOVING"
+                    if state["fresh"] and not (state["orientation"] or {}).get("gravity_valid")
                     else "LIVE IMU"
                     if state["fresh"]
                     else "IMU LINK STALE"
@@ -366,9 +381,10 @@ class LiveImu:
                 if (
                     self.display_enabled
                     and can_display
-                    and (now - self.last_display >= 1.2 or mode != self.last_display_state)
+                    and self._display_due(state, mode, now)
                 ):
                     self.last_display, self.last_display_state = now, mode
+                    self.last_display_sample = (state.get("packet") or {}).get("sample")
                     orientation = state["display_orientation"]
                     if orientation and orientation["gravity_valid"]:
                         text = (
@@ -383,6 +399,7 @@ class LiveImu:
                             self.virtual_motion if now < self.virtual_motion_until else "stop"
                         )
                         text, scene = scene_command(state, state["display_view"], motion)
+                    started = self.clock()
                     result = self.gateway.display(text, reuse_status=True)
                     with self.lock:
                         self.oled = {
@@ -392,6 +409,8 @@ class LiveImu:
                             "at": time.time(),
                             "visual_verified": False,
                             "scene": scene,
+                            "request_ms": (self.clock() - started) * 1000,
+                            "source_host_age_ms_at_send": state["host_age_ms"],
                         }
             except (OSError, RuntimeError, ValueError) as exc:
                 with self.lock:
@@ -402,4 +421,4 @@ class LiveImu:
                         "visual_verified": False,
                         "error": str(exc),
                     }
-            self.stop.wait(0.12)
+            self.stop.wait(0.04)

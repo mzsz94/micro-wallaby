@@ -274,11 +274,49 @@ class LiveImuTests(unittest.TestCase):
         self.feed(20, 50)
         s = self.imu.snapshot()
         self.assertAlmostEqual(s["orientation"]["roll"], 50, delta=0.1)
-        self.assertLess(s["display_orientation"]["roll"], 40)
+        self.assertLess(s["display_orientation"]["roll"], s["orientation"]["roll"])
         self.assertEqual(s["history"][-1]["accel"], [0, 0.766, 0.643])
         for seq in range(21, 26):
             self.feed(seq, 50)
         self.assertTrue(self.imu.latched)
+
+    def test_fast_presentation_follows_motion_without_changing_raw_warning_evidence(self):
+        self.feed(1, 0)
+        self.time += 0.1
+        self.imu.feed(packet(2, 35))
+        state = self.imu.snapshot()
+        self.assertAlmostEqual(state["orientation"]["roll"], 35, delta=0.1)
+        self.assertGreater(state["display_orientation"]["roll"], 32)
+        self.assertEqual(state["packet"]["accelMg"], packet(2, 35)["accelMg"])
+        self.assertFalse(state["tilt_latched"])
+
+    def test_presentation_wraps_near_inversion_without_a_full_turn(self):
+        self.feed(1, 179)
+        self.feed(2, -179)
+        state = self.imu.snapshot()
+        roll = state["display_orientation"]["roll"]
+        self.assertTrue(-180 <= roll <= 180)
+        self.assertGreater(abs(roll), 178)
+        self.assertTrue(state["fresh"])
+        self.assertTrue(state["orientation"]["gravity_valid"])
+        for seq in range(3, 16):
+            self.feed(seq, 179 if seq % 2 else -179)
+            self.assertGreater(abs(self.imu.snapshot()["display_orientation"]["roll"]), 178)
+
+    def test_graphics_updates_new_samples_faster_without_replaying_old_ones(self):
+        self.feed(1)
+        self.imu.set_display(True, "face")
+        self.imu.last_display_state = "LIVE IMU"
+        self.imu.last_display = self.time
+        self.imu.last_display_sample = 1
+        self.assertFalse(self.imu._display_due(self.imu.snapshot(), "LIVE IMU", self.time + 2))
+        self.feed(2)
+        self.assertFalse(self.imu._display_due(self.imu.snapshot(), "LIVE IMU", 0.45))
+        self.assertTrue(self.imu._display_due(self.imu.snapshot(), "LIVE IMU", 0.5))
+        self.imu.set_display(True, "text")
+        self.imu.last_display_state = "LIVE IMU"
+        self.assertFalse(self.imu._display_due(self.imu.snapshot(), "LIVE IMU", 0.5))
+        self.assertTrue(self.imu._display_due(self.imu.snapshot(), "IMU LINK STALE", 0.5))
 
     def test_invalid_packet_cancels_reference_and_view(self):
         self.feed(1)
