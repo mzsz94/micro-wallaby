@@ -16,7 +16,7 @@ int http_parse_request(char *header, struct http_request *r)
 	char version[16], extra;
 	if (sscanf(header, "%7s %95s %15s%c", r->method, r->path, version, &extra) != 3 ||
 	    strcmp(version, "HTTP/1.1") || r->path[0] != '/') return -EINVAL;
-	bool has_length = false, has_auth = false, has_host = false;
+	bool has_length = false, has_auth = false, has_host = false, has_connection = false;
 	char *p = line_end + 2;
 	while (*p) {
 		line_end = strstr(p, "\r\n");
@@ -31,6 +31,12 @@ int http_parse_request(char *header, struct http_request *r)
 		*colon++ = 0;
 		while (*colon == ' ' || *colon == '\t') colon++;
 		if (!strcasecmp(p, "Transfer-Encoding")) return -EINVAL;
+		if (!strcasecmp(p, "Connection")) {
+			if (has_connection) return -EINVAL;
+			has_connection = true;
+			if (!strcasecmp(colon, "keep-alive")) r->keep_alive = true;
+			else if (strcasecmp(colon, "close")) return -EINVAL;
+		}
 		if (!strcasecmp(p, "Host")) {
 			if (has_host || !*colon) return -EINVAL;
 			has_host = true;

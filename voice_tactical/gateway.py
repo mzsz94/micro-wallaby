@@ -143,6 +143,8 @@ class Gateway:
         # The embedded HTTP listener serves one socket at a time. Let input
         # polling run between output requests, without overlapping TCP sessions.
         self._http_lock = threading.Lock()
+        self._connection = None
+        self._connection_until = 0
         self._display_status = None
         self._display_status_until = 0
 
@@ -173,12 +175,22 @@ class Gateway:
             raise _GatewayError("disabled", "NU87 gateway is disabled; configure its IP and local token to enable it.")
         # HTTPConnection ignores proxy environment variables and never follows
         # redirects. Fixed paths and a numeric IP keep the bearer token on LAN.
-        connection = http.client.HTTPConnection(self._host, self._port, timeout=self.timeout)
+        # Reuse only connections explicitly kept open by the firmware. Its
+        # bounded session releases the single listener for other LAN clients.
+        # An ambiguous failure is never retried, including GETs and POSTs.
+        connection = self._connection
+        self._connection = None
+        if connection is not None and time.monotonic() >= self._connection_until:
+            connection.close()
+            connection = None
+        if connection is None:
+            connection = http.client.HTTPConnection(self._host, self._port, timeout=self.timeout)
+        reusable = False
         try:
             connection.request(method, path, body, {
                 "Authorization": "Bearer " + self._token,
                 "Content-Type": "application/octet-stream",
-                "Connection": "close",
+                "Connection": "keep-alive",
             })
             response = connection.getresponse()
             if response.status != expected_status:
@@ -190,7 +202,18 @@ class Gateway:
             data = response.read(limit + 1)
             if len(data) > limit:
                 raise _GatewayError("invalid_response", "NU87 gateway response exceeded the size limit.")
+            # A fixed Content-Length and complete read delimit the next reply.
+            # Legacy firmware advertises close and continues to work unchanged.
+            reusable = (
+                getattr(response, "will_close", True) is False
+                and not getattr(response, "chunked", False)
+                and response.getheader("Connection", "").lower() == "keep-alive"
+                and response.getheader("Content-Length", "") == str(len(data))
+            )
             if binary:
+                if reusable:
+                    self._connection = connection
+                    self._connection_until = time.monotonic() + 0.4
                 return data
             try:
                 result = json.loads(data)
@@ -198,13 +221,17 @@ class Gateway:
                 raise _GatewayError("invalid_response", "NU87 gateway returned invalid JSON.") from None
             if not isinstance(result, dict):
                 raise _GatewayError("invalid_response", "NU87 gateway returned an invalid object.")
+            if reusable:
+                self._connection = connection
+                self._connection_until = time.monotonic() + 0.4
             return result
         except TimeoutError:
             raise _GatewayError("timeout", "NU87 gateway timed out; no successful display ACK was confirmed.") from None
         except (OSError, http.client.HTTPException):
             raise _GatewayError("unreachable", "NU87 gateway connection failed.") from None
         finally:
-            connection.close()
+            if self._connection is not connection:
+                connection.close()
 
     def status(self) -> dict:
         try:

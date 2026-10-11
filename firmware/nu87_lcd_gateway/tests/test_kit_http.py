@@ -34,6 +34,8 @@ static int alarm_calls, alarm_error;
 static bool alarm_active;
 static int robot_calls;
 static int imu_error, imu_calls;
+static int send_error;
+static int64_t first_read_deadline, last_read_deadline;
 int gateway_imu_status(char *s,size_t n) { imu_calls++;return imu_error ? (int)n : snprintf(s,n,"{\"configured\":true,\"source\":\"nu87-i2c\",\"sample\":42}"); }
 int gateway_robot_command(const char *command) { robot_calls++;return !strcmp(command,"stop")?0:-EPERM; }
 int gateway_robot_status(char *s,size_t n,bool accepted) { return snprintf(s,n,"{\"accepted\":%s,\"command\":\"stop\",\"simulated\":true}",accepted?"true":"false"); }
@@ -52,12 +54,14 @@ size_t gateway_audio_chunk(uint8_t *out,size_t n) { assert(n>=176);memset(out,0,
 static int64_t k_uptime_get(void) { return 0; }
 int http_read_before(int fd,void *data,size_t n,int64_t deadline) {
  (void)fd;(void)deadline;
+ if(!first_read_deadline)first_read_deadline=deadline;
+ last_read_deadline=deadline;
  if(n>remaining)return -EIO;
  memcpy(data,input,n);input+=n;remaining-=n;return 0;
 }
 int http_send_all(int fd,const void *data,size_t n) {
  (void)fd;assert(sent_size+n<sizeof(output));memcpy(output+sent_size,data,n);
- sent_size+=n;output[sent_size]=0;return 0;
+ sent_size+=n;output[sent_size]=0;return send_error;
 }
 void gateway_get_state(struct gateway_state *s) { memset(s,0,sizeof(*s));s->wifi_connected=true;s->ble_connected=true;s->lcd_ready=true;strcpy(s->wifi_ipv4,"192.168.1.9"); }
 void gateway_ota_status(char *s,size_t n) { snprintf(s,n,"{\"busy\":false}"); }
@@ -75,7 +79,7 @@ static void request(const char *method,const char *path,const char *body,size_t 
  static char request[2048];
  int n=snprintf(request,sizeof(request),"%s %s HTTP/1.1\r\nHost: device\r\n%sContent-Length: %zu\r\n\r\n",method,path,auth?"Authorization: Bearer example-test-token\r\n":"",length);
  assert(n>0);memcpy(request+n,body,length);input=request;remaining=n+length;sent_size=0;output[0]=0;
- handle(1,0);
+ serve_client(1,0);
 }
 static void expect(int code) { char wanted[32];snprintf(wanted,sizeof(wanted),"HTTP/1.1 %d ",code);assert(strncmp(output,wanted,strlen(wanted))==0); }
 int main(void) {
@@ -142,6 +146,38 @@ int main(void) {
  request("POST","/v1/scan","",0,true);expect(422);assert(mode_calls==2);
  mode_error=-EBUSY;request("POST","/v1/scan","passive",7,true);expect(409);assert(mode_calls==3);
  request("GET","/v1/status","",0,true);expect(200);assert(strstr(output,"\"protocol\":\"nu40-kit-display\"")!=NULL);assert(strstr(output,"\"power\":false,\"ota\":false")!=NULL);
+ const char *post="POST /v1/display HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer example-test-token\r\nConnection: keep-alive\r\nContent-Length: 3\r\n\r\nABC";
+ const char *get="GET /v1/imu/status HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer example-test-token\r\nConnection: keep-alive\r\n\r\n";
+ char batch[2048];int before;
+ display_error=0;
+ snprintf(batch,sizeof(batch),"%s%s",post,get);
+ input=batch;remaining=strlen(batch);sent_size=0;before=display_calls;
+ first_read_deadline=0;last_read_deadline=0;
+ serve_client(1,0);
+ assert(display_calls==before+1&&display_size==3&&!memcmp(display,"ABC",3));
+ assert(remaining==0&&strstr(output,"Connection: keep-alive"));
+ assert(strstr(strstr(output,"HTTP/1.1 200")+1,"HTTP/1.1 200"));
+ assert(first_read_deadline==5000&&last_read_deadline==750);
+ /* Each request needs authentication; rejected bodies are never rerouted. */
+ snprintf(batch,sizeof(batch),"%sPOST /v1/display HTTP/1.1\r\nHost: x\r\nContent-Length: 3\r\nConnection: keep-alive\r\n\r\nBAD%s",get,get);
+ input=batch;remaining=strlen(batch);sent_size=0;before=imu_calls;
+ serve_client(1,0);
+ assert(imu_calls==before+1&&remaining>strlen(get));
+ assert(strstr(output,"HTTP/1.1 401")&&strstr(output,"Connection: close"));
+ /* Release the serial listener after eight requests, even for active peers. */
+ batch[0]=0;for(int i=0;i<9;i++)strcat(batch,get);
+ input=batch;remaining=strlen(batch);sent_size=0;before=imu_calls;
+ serve_client(1,0);
+ assert(imu_calls==before+8&&remaining==strlen(get));
+ assert(strstr(output,"Connection: close"));
+ /* A failed response must not execute a following queued command. */
+ snprintf(batch,sizeof(batch),"%s%s",get,post);
+ input=batch;remaining=strlen(batch);sent_size=0;before=display_calls;send_error=-EIO;
+ serve_client(1,0);send_error=0;
+ assert(display_calls==before&&remaining==strlen(post));
+ /* The elapsed session budget also forces a close after this response. */
+ input=get;remaining=strlen(get);sent_size=0;
+ assert(!handle(1,0,true,5000,0)&&strstr(output,"Connection: close"));
  return 0;
 }
 '''
@@ -151,7 +187,7 @@ class KitHttpTests(unittest.TestCase):
         compiler = shutil.which('clang') or shutil.which('cc')
         self.assertIsNotNone(compiler)
         source = (APP / 'src/http_server.c').read_text()
-        handler = source[source.index('static void respond('):source.index('void gateway_http_run(')]
+        handler = source[source.index('struct http_client {'):source.index('void gateway_http_run(')]
         with tempfile.TemporaryDirectory() as directory:
             cfile = Path(directory) / 'kit_http.c'
             executable = Path(directory) / 'kit_http'

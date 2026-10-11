@@ -11,8 +11,9 @@ struct http_request {
 	char path[96];
 	char bearer[129];
 	size_t content_length;
+	bool keep_alive;
 };
-/* Strict one-request framing; no chunking, duplicate lengths or pipelining. */
+/* Strict request framing; bounded sequential keep-alive, no chunking. */
 int http_parse_request(char *header, struct http_request *request);
 int http_send_all(int socket, const void *data, size_t length);
 int http_read_exact(int socket, void *data, size_t length);

@@ -17,9 +17,15 @@ ACK = {"ready": True, "columns": 21, "rows": 4, "dfuCapable": False}
 
 
 class Response:
-    def __init__(self, status=200, value=None, raw=None):
+    def __init__(self, status=200, value=None, raw=None, *, keep_alive=False):
         self.status = status
         self.body = raw if raw is not None else json.dumps(value).encode()
+        self.will_close = not keep_alive
+        self.chunked = False
+
+    def getheader(self, name, default=None):
+        return {"Connection": "close" if self.will_close else "keep-alive",
+                "Content-Length": str(len(self.body))}.get(name, default)
 
     def read(self, size):
         return self.body[:size]
@@ -215,6 +221,56 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(result["verification"], "gateway-matching-ack")
         self.assertEqual(transport.calls[1][3:6], ("POST", "/v1/display", b"LOCAL\nSIM: GREET"))
         self.assertTrue(all(connection.closed for connection in transport.connections))
+
+    def test_keep_alive_reuses_complete_authenticated_responses_and_obeys_close(self):
+        transport = self.transport(Response(value=STATUS, keep_alive=True),
+                                   Response(value=ACK, keep_alive=True),
+                                   Response(value=STATUS), Response(value=STATUS))
+        gateway = self.gateway()
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10):
+            self.assertTrue(gateway.display("FIRST")["acknowledged"])
+            self.assertTrue(gateway.status()["ready"])
+            self.assertEqual(len(transport.connections), 1)
+            self.assertTrue(transport.connections[0].closed)
+            self.assertTrue(gateway.status()["ready"])
+        self.assertEqual(len(transport.connections), 2)
+        self.assertTrue(all(call[-1]["Authorization"] == "Bearer " + TOKEN
+                            for call in transport.calls))
+        self.assertTrue(all(call[-1]["Connection"] == "keep-alive"
+                            for call in transport.calls))
+
+    def test_idle_keep_alive_expires_before_firmware_idle_timeout(self):
+        transport = self.transport(Response(value=STATUS, keep_alive=True),
+                                   Response(value=STATUS))
+        gateway = self.gateway()
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10):
+            self.assertTrue(gateway.status()["ready"])
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10.5):
+            self.assertTrue(gateway.status()["ready"])
+        self.assertEqual(len(transport.connections), 2)
+        self.assertTrue(all(connection.closed for connection in transport.connections))
+
+    def test_failed_reused_display_connection_is_closed_without_retrying_command(self):
+        transport = self.transport(Response(value=STATUS, keep_alive=True),
+                                   OSError("socket closed"), Response(value=STATUS))
+        gateway = self.gateway()
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10):
+            result = gateway.display("SEND ONCE")
+            self.assertEqual(result["code"], "unreachable")
+            self.assertEqual(len(transport.calls), 2)
+            self.assertEqual(len(transport.connections), 1)
+            self.assertTrue(transport.connections[0].closed)
+            self.assertTrue(gateway.status()["ready"])
+        self.assertEqual(len(transport.connections), 2)
+
+    def test_invalid_persistent_json_cannot_leak_a_reusable_socket(self):
+        transport = self.transport(Response(raw=b"invalid", keep_alive=True),
+                                   Response(value=STATUS))
+        gateway = self.gateway()
+        self.assertEqual(gateway.status()["code"], "invalid_response")
+        self.assertTrue(transport.connections[0].closed)
+        self.assertTrue(gateway.status()["ready"])
+        self.assertEqual(len(transport.connections), 2)
 
     def test_live_display_reuses_only_recent_acknowledged_status(self):
         transport = self.transport(Response(value=STATUS), Response(value=ACK),

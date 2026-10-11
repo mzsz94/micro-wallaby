@@ -56,6 +56,8 @@ static void invalid_cases(void)
 		{"identity transfer", "POST /v1/lcd HTTP/1.1\r\nHost: x\r\ntRaNsFeR-EnCoDiNg: identity\r\n\r\n"},
 		{"transfer plus length", "POST /v1/lcd HTTP/1.1\r\nHost: x\r\nContent-Length: 4\r\nTransfer-Encoding: chunked\r\n\r\n"},
 		{"duplicate auth", "POST /v1/lcd HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer a\r\nauthorization: Bearer b\r\n\r\n"},
+		{"duplicate connection", "GET /v1/status HTTP/1.1\r\nHost: x\r\nConnection: close\r\nconnection: keep-alive\r\n\r\n"},
+		{"ambiguous connection", "GET /v1/status HTTP/1.1\r\nHost: x\r\nConnection: keep-alive, close\r\n\r\n"},
 		{"basic auth", "POST /v1/lcd HTTP/1.1\r\nHost: x\r\nAuthorization: Basic abc\r\n\r\n"},
 		{"malformed bearer separator", "POST /v1/lcd HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer\tabc\r\n\r\n"},
 	};
@@ -69,7 +71,10 @@ int main(void)
 	struct http_request request;
 	check(parse("GET /v1/status HTTP/1.1\r\nHost: example\r\n\r\n", &request) == 0, "valid status");
 	check(!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/status") &&
-	      request.content_length == 0 && request.bearer[0] == 0, "status fields initialized");
+	      request.content_length == 0 && request.bearer[0] == 0 && !request.keep_alive,
+	      "status fields initialized, legacy close default");
+	check(parse("GET /v1/status HTTP/1.1\r\nHost: x\r\nConnection: KeEp-AlIvE\r\n\r\n",
+		    &request) == 0 && request.keep_alive, "explicit keep-alive accepted");
 	check(parse("POST /v1/lcd HTTP/1.1\r\nhOsT:\texample\r\nContent-Length: 20\r\nAuthorization: Bearer test-token\r\nConnection: close\r\n\r\n", &request) == 0,
 	      "valid lcd request");
 	check(request.content_length == 20 && !strcmp(request.bearer, "test-token") &&
