@@ -32,6 +32,8 @@ class FakeSerial:
         self.incoming = bytearray(EFUSE_PROMPT + b"\r\n")
         self.opens = self.closes = 0
         self.writes = []
+        self.bursts = []
+        self.frame = bytearray()
         self.port = None
         self.dtr = self.rts = None
         self.mode = "ok"
@@ -44,10 +46,23 @@ class FakeSerial:
         self.closes += 1
 
     def write(self, wire):
-        self.writes.append(wire)
-        if wire == b"\n":
+        self.bursts.append(wire)
+        if wire == b"\n" and not self.frame:
+            self.writes.append(wire)
             self.incoming.extend(READY + b"\r\n")
             return 1
+        for value in wire:
+            if value == 0:
+                if self.frame:
+                    frame = b"\0" + bytes(self.frame) + b"\0"
+                    self.frame.clear()
+                    self.writes.append(frame)
+                    self.reply(frame)
+            else:
+                self.frame.append(value)
+        return len(wire)
+
+    def reply(self, wire):
         raw = cobs_decode(wire[1:-1])
         _, _, _, session, seq, method, path, token, size, _ = HEADER.unpack_from(raw)
         self.incoming.extend(b"unrelated diagnostic text\n\0\x03bad\0")
@@ -107,6 +122,7 @@ class USBProtocolTests(unittest.TestCase):
         self.assertEqual(gateway._request("GET", "/v1/status"), {"ok": True})
         self.assertEqual(gateway._request("POST", "/v1/display", b"hello"), {"ok": True})
         self.assertEqual(serial.opens, 1)
+        self.assertLessEqual(max(map(len, serial.bursts)), 8)
         self.assertEqual(serial.writes.count(b"\n"), 1)
         self.assertEqual(len(serial.writes), 4)  # LF, HELLO, GET, POST.
         self.assertEqual(gateway._base()["transport"], "usb")

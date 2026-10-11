@@ -5,9 +5,6 @@ menu "LCD gateway settings"
 config GATEWAY_USB_HOST
 	bool "Use the on-board USB-UART for HostPC data and control"
 	depends on GATEWAY_NU40_KIT
-	# The pinned LOGUART driver implements the IRQ API but omits this flag.
-	select SERIAL_SUPPORT_INTERRUPT if UART_AMEBA_LOGUART
-	select UART_INTERRUPT_DRIVEN
 	default n
 	help
 	  Use authenticated CRC-protected serial RPC instead of the HTTP listener.

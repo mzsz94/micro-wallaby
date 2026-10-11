@@ -168,8 +168,14 @@ class SerialGateway(Gateway):
     def _exchange(self, method: int, path: str, body: bytes) -> tuple[int, bytes]:
         self._sequence += 1
         wire = pack_request(self._session, self._sequence, method, path, self._token, body)
-        if self._serial.write(wire) != len(wire):
-            raise OSError("Incomplete USB write.")
+        # The shared AmebaD log UART has a 16-byte FIFO and its KM0 monitor
+        # owns the IRQ. Firmware disables that monitor and polls at 1 ms.
+        # Pace eight-byte bursts; never assume a PC write is wire flow control.
+        for offset in range(0, len(wire), 8):
+            chunk = wire[offset:offset + 8]
+            if self._serial.write(chunk) != len(chunk):
+                raise OSError("Incomplete USB write.")
+            time.sleep(.002)
         deadline = time.monotonic() + self.timeout
         while time.monotonic() < deadline:
             for byte in self._serial.read(2048):

@@ -60,14 +60,22 @@ audio, alarm and SMP validation. CRC detects corruption; it is not authenticatio
 
 ## Pinned Zephyr compatibility
 
-The pinned AmebaD LOGUART driver implements the IRQ API but omits the Kconfig
-interrupt capability and several HAL shims. The USB build supplies those shims
-inside this app using the UART2 ROM functions and Zephyr IRQ locking. It does not
-change the SDK or pins. AmebaD has no Dplus LOGUART ICR register: the shim reads
-line status and the RX handler drains the FIFO to clear timeout conditions.
-Console IRQ delivery is deferred until the vendor polling startup completes.
-Startup logs remain visible; after RF readiness the UART log backend is disabled
-before framed traffic begins. Framed responses then use the console UART.
+The pinned AmebaD log UART is a shared UART2 with a 16-byte FIFO. Its KM0
+ROM monitor consumes and echoes incoming bytes before the KM4 application can
+receive them. The Zephyr HAL's RX-routing macros are no-ops on this chip; simply
+enabling the IRQ API does not transfer ownership. This matches the previously
+recorded UART shell limitation in `firmware/nu87_imu_bringup/README.md`.
+
+After vendor RF startup the app masks the UART interrupt through the ROM API,
+then a bounded priority-1 KM4 receiver polls the FIFO every millisecond. The host
+paces eight-byte bursts at two-millisecond intervals. This deliberately limits
+host-to-board throughput; it is not a 1.5 Mbps application transfer rate. Audio
+responses still use the full UART transmit rate. CRC protects against a scheduling
+gap dropping bytes; ambiguous operations still fail without replay.
+
+No SDK, KM0 image or persistent register configuration is changed. Startup logs
+remain visible; after RF readiness the UART log backend is disabled before
+framed traffic begins. Framed responses then use the console UART.
 
 ## Validation
 
