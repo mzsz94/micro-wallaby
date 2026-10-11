@@ -15,6 +15,7 @@ import math
 import os
 from pathlib import Path
 import re
+import select
 import threading
 import time
 
@@ -180,12 +181,29 @@ class Gateway:
         # An ambiguous failure is never retried, including GETs and POSTs.
         connection = self._connection
         self._connection = None
-        if connection is not None and time.monotonic() >= self._connection_until:
-            connection.close()
-            connection = None
+        if connection is not None:
+            expired = time.monotonic() >= self._connection_until
+            sock = connection.sock
+            try:
+                # The previous body was fully consumed. Readable bytes now
+                # mean EOF or an unexpected reply, so discard before sending
+                # a new command. This does not replay an ambiguous write.
+                readable, _, failed = (
+                    select.select([sock], [], [sock], 0) if sock else ([], [], [])
+                )
+                expired = expired or sock is None or bool(readable or failed)
+            except (OSError, ValueError):
+                expired = True
+            if expired:
+                connection.close()
+                connection = None
         if connection is None:
             connection = http.client.HTTPConnection(self._host, self._port, timeout=self.timeout)
         reusable = False
+        # Start the reuse budget before the network round trip. A delayed
+        # response can arrive after the firmware's 750 ms idle timer has
+        # already elapsed; receiving it must not grant another 400 ms.
+        reuse_until = time.monotonic() + 0.4
         try:
             connection.request(method, path, body, {
                 "Authorization": "Bearer " + self._token,
@@ -211,9 +229,9 @@ class Gateway:
                 and response.getheader("Content-Length", "") == str(len(data))
             )
             if binary:
-                if reusable:
+                if reusable and time.monotonic() < reuse_until:
                     self._connection = connection
-                    self._connection_until = time.monotonic() + 0.4
+                    self._connection_until = reuse_until
                 return data
             try:
                 result = json.loads(data)
@@ -221,9 +239,9 @@ class Gateway:
                 raise _GatewayError("invalid_response", "NU87 gateway returned invalid JSON.") from None
             if not isinstance(result, dict):
                 raise _GatewayError("invalid_response", "NU87 gateway returned an invalid object.")
-            if reusable:
+            if reusable and time.monotonic() < reuse_until:
                 self._connection = connection
-                self._connection_until = time.monotonic() + 0.4
+                self._connection_until = reuse_until
             return result
         except TimeoutError:
             raise _GatewayError("timeout", "NU87 gateway timed out; no successful display ACK was confirmed.") from None

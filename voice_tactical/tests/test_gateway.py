@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import socket
 import tempfile
 import threading
 import unittest
@@ -44,6 +45,9 @@ class Transport:
         class Connection:
             closed = False
 
+            def __init__(self):
+                self.sock, self.peer = socket.socketpair()
+
             def request(self, method, path, body, headers):
                 transport.calls.append((host, port, timeout, method, path, body, headers))
 
@@ -55,10 +59,16 @@ class Transport:
 
             def close(self):
                 self.closed = True
+                self.sock.close()
+                self.peer.close()
 
         connection = Connection()
         self.connections.append(connection)
         return connection
+
+    def close(self):
+        for connection in self.connections:
+            connection.close()
 
 
 class GatewayTests(unittest.TestCase):
@@ -69,6 +79,7 @@ class GatewayTests(unittest.TestCase):
 
     def transport(self, *responses):
         transport = Transport(*responses)
+        self.addCleanup(transport.close)
         patched = patch("voice_tactical.gateway.http.client.HTTPConnection", side_effect=transport.connect)
         patched.start()
         self.addCleanup(patched.stop)
@@ -249,6 +260,37 @@ class GatewayTests(unittest.TestCase):
             self.assertTrue(gateway.status()["ready"])
         self.assertEqual(len(transport.connections), 2)
         self.assertTrue(all(connection.closed for connection in transport.connections))
+
+    def test_peer_fin_is_discarded_before_sending_next_display_once(self):
+        transport = self.transport(Response(value=STATUS, keep_alive=True),
+                                   Response(value=ACK, keep_alive=True),
+                                   Response(value=ACK))
+        gateway = self.gateway()
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10):
+            self.assertTrue(gateway.display("FIRST", reuse_status=True)["acknowledged"])
+            # Real socket EOF, despite a keep-alive header and unexpired budget.
+            transport.connections[0].peer.shutdown(socket.SHUT_WR)
+            self.assertTrue(gateway.display("SECOND", reuse_status=True)["acknowledged"])
+        self.assertTrue(transport.connections[0].closed)
+        self.assertEqual(len(transport.connections), 2)
+        self.assertEqual([call[5] for call in transport.calls], [None, b"FIRST", b"SECOND"])
+
+    def test_delayed_reply_does_not_extend_keep_alive_budget(self):
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10) as clock:
+            class DelayedResponse(Response):
+                def read(self, size):
+                    clock.return_value = 10.6
+                    return super().read(size)
+
+            transport = self.transport(DelayedResponse(value=STATUS, keep_alive=True),
+                                       Response(value=STATUS))
+            gateway = self.gateway()
+            self.assertTrue(gateway.status()["ready"])
+            self.assertTrue(transport.connections[0].closed)
+            clock.return_value = 10.7
+            self.assertTrue(gateway.status()["ready"])
+        self.assertEqual(len(transport.connections), 2)
+        self.assertEqual(len(transport.calls), 2)
 
     def test_failed_reused_display_connection_is_closed_without_retrying_command(self):
         transport = self.transport(Response(value=STATUS, keep_alive=True),
