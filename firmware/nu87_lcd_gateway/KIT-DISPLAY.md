@@ -87,6 +87,20 @@ NU40이 후보로 완성되지 않을 수 있습니다. 원인 분리용이며 �
 기본값인 `active`를 사용합니다. 검색 시작 때 공존 설정을 읽기만 하며 안테나나
 eFuse 설정을 변경하지 않습니다.
 
+### 연결 감시 시간
+
+NU87은 `BT_LE_CONN_PARAM_DEFAULT`의 초기 연결 감시 시간 4초를 유지하도록, 선택한
+NU40의 더 짧은 매개변수 요청을 4초로 조정합니다. 현재 NU40 Zephyr 빌드의 주변장치
+기본 선호값 `42`는 10ms 단위이므로 420ms입니다. 연결 간격·지연은 그대로 협상하고,
+더 긴 감시 시간은 줄이지 않습니다. 다른 장치의 요청은 바꾸지 않습니다.
+
+`/v1/scan`의 `link.paramRequests`, `shortTimeoutRequests`, `requestedTimeout`은
+수신 요청과 조정 횟수입니다. `paramUpdates`, `paramsKnown`, `params`는 실제 완료
+콜백의 `[연결 간격(1.25ms), 지연, 감시 시간(10ms)]`입니다. 요청 수락만으로 적용을
+주장하지 않습니다. 연결 종료/새 연결에는 `paramsKnown=false`로 바뀌며 마지막 값은
+남깁니다. `minTimeout=400`은 정책값입니다. 이것은 연결 감시이며 HostPC 센서의 1.5초
+신선도나 OLED 데이터의 3초 만료를 연장하지 않습니다.
+
 ### 수신 경로별 카운터
 
 기존 `radio_diagnostics.c`의 `bt_coex_process_rx_frame` 훅은 **Realtek의 H4 이벤트

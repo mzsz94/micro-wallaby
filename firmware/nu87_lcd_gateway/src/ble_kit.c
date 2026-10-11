@@ -24,6 +24,11 @@ extern int wifi_is_running(unsigned char wlan_idx);
 #define KIT_FRESH_MS 15000
 #define KIT_SETUP_MS 5000
 #define KIT_FRAGMENT_MS 1900
+/* Match BT_LE_CONN_PARAM_DEFAULT's 4 s supervision timeout. A shorter
+ * peripheral preference must not silently replace the central's default.
+ * This is link supervision, not the host/OLED measurement freshness TTL.
+ */
+#define KIT_MIN_SUPERVISION_TIMEOUT 400 /* 10 ms units */
 static struct bt_uuid_128 service_uuid = BT_UUID_INIT_128(BLE_DISPLAY_UUID_SERVICE_VAL);
 static struct bt_uuid_128 text_uuid = BT_UUID_INIT_128(BLE_DISPLAY_UUID_TEXT_VAL);
 static struct bt_uuid_128 ack_uuid = BT_UUID_INIT_128(BLE_DISPLAY_UUID_ACK_VAL);
@@ -56,8 +61,10 @@ static struct scan_counters scan_counts;
 struct kit_diagnostics {
 	uint32_t connections, disconnects, commands, failures;
 	uint32_t failure_at, disconnect_at;
+	uint32_t param_requests, short_timeout_requests, param_updates;
+	uint16_t requested_timeout, interval, latency, timeout;
 	int failure, failure_att, failure_enqueue, failure_fragment, disconnect_reason;
-	bool failure_ack;
+	bool failure_ack, params_known;
 };
 static struct kit_diagnostics kit_diag = { .disconnect_reason = -1 };
 static uint8_t current_att_error;
@@ -264,13 +271,20 @@ int gateway_kit_diagnostics(char *json, size_t capacity)
 	int count = snprintf(json, capacity,
 		"{\"connections\":%lu,\"disconnects\":%lu,\"commands\":%lu,\"failures\":%lu,"
 		"\"lastFailure\":%d,\"failureAtMs\":%lu,\"attError\":%d,\"enqueueError\":%d,"
-		"\"fragment\":%d,\"ackReceived\":%s,\"disconnectReason\":%d,\"disconnectAtMs\":%lu}",
+		"\"fragment\":%d,\"ackReceived\":%s,\"disconnectReason\":%d,\"disconnectAtMs\":%lu,"
+		"\"paramRequests\":%lu,\"shortTimeoutRequests\":%lu,\"requestedTimeout\":%u,"
+		"\"paramUpdates\":%lu,\"paramsKnown\":%s,\"params\":[%u,%u,%u],\"minTimeout\":%u}",
 		(unsigned long)snapshot.connections, (unsigned long)snapshot.disconnects,
 		(unsigned long)snapshot.commands, (unsigned long)snapshot.failures,
 		snapshot.failure, (unsigned long)snapshot.failure_at, snapshot.failure_att,
 		snapshot.failure_enqueue, snapshot.failure_fragment,
 		snapshot.failure_ack ? "true" : "false", snapshot.disconnect_reason,
-		(unsigned long)snapshot.disconnect_at);
+		(unsigned long)snapshot.disconnect_at,
+		(unsigned long)snapshot.param_requests, (unsigned long)snapshot.short_timeout_requests,
+		(unsigned int)snapshot.requested_timeout, (unsigned long)snapshot.param_updates,
+		snapshot.params_known ? "true" : "false", (unsigned int)snapshot.interval,
+		(unsigned int)snapshot.latency, (unsigned int)snapshot.timeout,
+		KIT_MIN_SUPERVISION_TIMEOUT);
 	if (count < 0 || (size_t)count >= capacity) { json[0] = '\0'; return -ENOSPC; }
 	return count;
 }
@@ -346,6 +360,7 @@ static void connected(struct bt_conn *conn, uint8_t error)
 		connect_done = true;
 		connect_error = error == 0 ? 0 : -ECONNREFUSED;
 		closed = error != 0;
+		kit_diag.params_known = false;
 		if (!error) { count_report(&kit_diag.connections); }
 	}
 	k_spin_unlock(&lock, key);
@@ -360,6 +375,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		kit_diag.disconnect_reason = reason;
 		kit_diag.disconnect_at = (uint32_t)k_uptime_get();
 		closed = true;
+		kit_diag.params_known = false;
 		state.ble_connected = state.lcd_ready = false;
 		state.last_error = -ENOTCONN;
 		gateway_smp_disconnected(conn);
@@ -377,7 +393,41 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	k_spin_unlock(&lock, key);
 	k_sem_give(&link_event);
 }
-BT_CONN_CB_DEFINE(kit_connections) = { .connected = connected, .disconnected = disconnected };
+static bool le_param_req(struct bt_conn *conn, struct bt_le_conn_param *params)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (is_attempt(conn)) {
+		count_report(&kit_diag.param_requests);
+		kit_diag.requested_timeout = params->timeout;
+		if (params->timeout < KIT_MIN_SUPERVISION_TIMEOUT) {
+			count_report(&kit_diag.short_timeout_requests);
+			params->timeout = KIT_MIN_SUPERVISION_TIMEOUT;
+		}
+	}
+	k_spin_unlock(&lock, key);
+	return true;
+}
+
+static void le_param_updated(struct bt_conn *conn, uint16_t interval,
+			     uint16_t latency, uint16_t timeout)
+{
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	if (is_attempt(conn)) {
+		count_report(&kit_diag.param_updates);
+		kit_diag.interval = interval;
+		kit_diag.latency = latency;
+		kit_diag.timeout = timeout;
+		kit_diag.params_known = true;
+	}
+	k_spin_unlock(&lock, key);
+}
+
+BT_CONN_CB_DEFINE(kit_connections) = {
+	.connected = connected,
+	.disconnected = disconnected,
+	.le_param_req = le_param_req,
+	.le_param_updated = le_param_updated,
+};
 
 static uint8_t discovered(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			  struct bt_gatt_discover_params *params)

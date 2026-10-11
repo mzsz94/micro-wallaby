@@ -192,7 +192,7 @@ static void test_fragmentation_and_validation(void)
 
 static void test_retained_link_diagnostics(void)
 {
-	char json[512];
+	char json[768];
 	reset(ATT_REJECT);
 	assert(gateway_display_text((const uint8_t *)"hello", 5, 5000) == -EIO);
 	assert(kit_diag.commands == 1 && kit_diag.failures == 1);
@@ -227,6 +227,33 @@ static void test_retained_link_diagnostics(void)
 	disconnected(&peripheral, 8);
 	assert(kit_diag.connections == UINT32_MAX && kit_diag.disconnects == UINT32_MAX);
 	assert(gateway_kit_diagnostics(json, sizeof(json)) > 0);
+}
+
+static void test_connection_supervision_negotiation(void)
+{
+	reset(ACK_FIRST);
+	struct bt_le_conn_param params = {
+		.interval_min = 24, .interval_max = 40, .latency = 0, .timeout = 42,
+	};
+	assert(kit_connections.le_param_req(&peripheral, &params));
+	assert(params.timeout == 400 && params.interval_min == 24 && params.interval_max == 40);
+	assert(kit_diag.param_requests == 1 && kit_diag.short_timeout_requests == 1);
+	assert(kit_diag.requested_timeout == 42 && !kit_diag.params_known);
+	kit_connections.le_param_updated(&peripheral, 40, 0, 400);
+	assert(kit_diag.params_known && kit_diag.interval == 40 && kit_diag.timeout == 400);
+	char json[768];
+	assert(gateway_kit_diagnostics(json, sizeof(json)) > 0);
+	assert(strstr(json, "\"params\":[40,0,400]") && strstr(json, "\"requestedTimeout\":42"));
+	params.timeout = 600;
+	assert(kit_connections.le_param_req(&peripheral, &params) && params.timeout == 600);
+	assert(kit_diag.param_requests == 2 && kit_diag.short_timeout_requests == 1);
+	struct bt_conn other = {0};
+	params.timeout = 42;
+	assert(kit_connections.le_param_req(&other, &params) && params.timeout == 42);
+	kit_connections.le_param_updated(&other, 80, 0, 42);
+	assert(kit_diag.param_requests == 2 && kit_diag.param_updates == 1);
+	disconnected(&peripheral, 8);
+	assert(!kit_diag.params_known && kit_diag.timeout == 400);
 }
 
 static void advertisement(const bt_addr_le_t *address, bool name, const char *text)
@@ -569,6 +596,7 @@ int main(void)
 	test_errors_and_timeouts();
 	test_fragmentation_and_validation();
 	test_retained_link_diagnostics();
+	test_connection_supervision_negotiation();
 	test_explicit_selection_and_freshness();
 	test_wifi_discovery_scheduling();
 	test_controller_initialization_after_ipv4();

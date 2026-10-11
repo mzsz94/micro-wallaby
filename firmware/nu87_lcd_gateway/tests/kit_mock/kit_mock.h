@@ -68,7 +68,8 @@ typedef uint8_t bt_security_t;
 enum bt_security_err { BT_SECURITY_ERR_SUCCESS, BT_SECURITY_ERR_AUTH_FAIL };
 #define BT_SECURITY_L3 3
 static bt_security_t mock_security = BT_SECURITY_L3;
-struct bt_conn_cb { void (*connected)(struct bt_conn *,uint8_t); void (*disconnected)(struct bt_conn *,uint8_t); void (*security_changed)(struct bt_conn *,bt_security_t,enum bt_security_err); };
+struct bt_le_conn_param { uint16_t interval_min, interval_max, latency, timeout; };
+struct bt_conn_cb { void (*connected)(struct bt_conn *,uint8_t); void (*disconnected)(struct bt_conn *,uint8_t); void (*security_changed)(struct bt_conn *,bt_security_t,enum bt_security_err); bool (*le_param_req)(struct bt_conn *,struct bt_le_conn_param *); void (*le_param_updated)(struct bt_conn *,uint16_t,uint16_t,uint16_t); };
 struct bt_conn_auth_cb { void (*passkey_entry)(struct bt_conn *); void (*cancel)(struct bt_conn *); };
 static inline int bt_conn_auth_cb_register(const struct bt_conn_auth_cb *c) { ARG_UNUSED(c); return 0; }
 static inline int bt_conn_auth_cancel(struct bt_conn *c) { ARG_UNUSED(c); return 0; }
