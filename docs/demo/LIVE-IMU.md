@@ -40,7 +40,7 @@ flowchart LR
 
 1. 센서를 내려놓고 `NU87 I2C · LIVE`, 증가하는 `SEQ`, `WHO_AM_I 0x6a`를 확인합니다.
 2. **현재 자세를 기준으로 설정**을 누릅니다. 2초 이상, 최소 12개의 새 실측값으로
-   기준 중력 방향을 계산합니다. 움직이는 중에는 설정을 거절합니다.
+   기준 중력 방향을 계산합니다. Wi-Fi 지연 시 최대 20초 기다리며, 움직이는 중에는 설정을 거절합니다.
 3. **가상 탐색 시작**을 누르고 센서를 천천히 좌우로 기울입니다.
    화면 자세·원본 6축과 NU40 OLED의 `R/P/Tilt/Seq` 변화를 확인합니다.
 4. 기준보다 약 45° 기울여 2초 유지합니다. **35° 이상이 0.6초 지속**되면
@@ -115,7 +115,7 @@ python3 -m unittest discover -s firmware/nu87_lcd_gateway/tests
 make -C firmware/nu87_imu_bringup/tests test
 ```
 
-HostPC Python 124개, JavaScript 52개, NU87 HTTP·업로드·연결 Python 77개를 통과했습니다.
+HostPC Python 125개, JavaScript 52개, NU87 HTTP·업로드·연결 Python 77개를 통과했습니다.
 센서·I2C 회귀 검사와 NU87 Zephyr 빌드도 통과했습니다.
 단위 테스트의 고정 입력은 테스트 전용이며 실행 중인 실측 모드에는 재생 경로가 없습니다.
 

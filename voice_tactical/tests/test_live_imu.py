@@ -108,6 +108,18 @@ class LiveImuTests(unittest.TestCase):
         self.assertIsNone(self.imu.reference)
         self.assertFalse(self.imu.snapshot()["calibrating"])
 
+    def test_reference_waits_for_twelve_samples_on_a_slow_lan(self):
+        self.feed(1)
+        self.imu.calibrate()
+        for seq in range(2, 13):
+            self.time += 0.8
+            self.feed(seq)
+        self.assertIsNone(self.imu.reference)
+        self.assertTrue(self.imu.snapshot()["calibrating"])
+        self.time += 0.8
+        self.feed(13)
+        self.assertEqual(self.imu.reference, [0, 0, 1])
+
     def test_warning_dwell_latch_return_and_explicit_clear(self):
         self.reference()
         self.feed(20, 50)

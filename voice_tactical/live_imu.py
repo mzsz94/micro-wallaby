@@ -185,7 +185,7 @@ class LiveImu:
                                 "reference", "실측 중력으로 기준 자세 설정 · 기울기 감시 시작"
                             )
                         self.reference_samples = None
-                    elif now - self.reference_started > 8:
+                    elif now - self.reference_started > 20:
                         self.reference_samples = None
                         self.error = "기준 자세 설정 시간이 초과됐습니다."
             if self.reference and stable_gravity and not self.latched:
