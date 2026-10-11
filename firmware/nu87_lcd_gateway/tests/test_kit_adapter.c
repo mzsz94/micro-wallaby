@@ -7,7 +7,8 @@
 
 enum delivery { ACK_FIRST, WRITE_FIRST, WRONG_SEQUENCE, BAD_ACK, OLED_ERROR,
 	BUSY_ACK, BAD_TEXT_ACK, ATT_ERROR_AFTER_ACK, DISCONNECT_AFTER_ACK,
-	DISCONNECT_BEFORE_ACK, NO_RESPONSE, ACK_WITHOUT_ATT_RESPONSE, NO_ACK };
+	DISCONNECT_BEFORE_ACK, NO_RESPONSE, ACK_WITHOUT_ATT_RESPONSE, NO_ACK,
+	ATT_REJECT, ENQUEUE_ERROR };
 static enum delivery delivery;
 static struct bt_conn peripheral;
 static struct ble_display_rx receiver;
@@ -64,6 +65,8 @@ int bt_gatt_write(struct bt_conn *conn, struct bt_gatt_write_params *params)
 	}
 	assert(params->handle == 9);
 	assert(params->length >= 7 && params->length <= 20);
+	if (delivery == ENQUEUE_ERROR) { return -ENOMEM; }
+	if (delivery == ATT_REJECT) { params->func(conn, 0x13, params); return 0; }
 	transferred += params->length - 6;
 	enum ble_display_result result = ble_display_receive(&receiver, params->data,
 		params->length, (uint32_t)mock_time);
@@ -92,6 +95,8 @@ static void reset(enum delivery behavior)
 	memset(&peripheral, 0, sizeof(peripheral));
 	memset(candidates, 0, sizeof(candidates));
 	memset(&scan_counts, 0, sizeof(scan_counts));
+	memset(&kit_diag, 0, sizeof(kit_diag));
+	kit_diag.disconnect_reason = -1;
 	scan_active = false;
 	requested_scan_type = active_scan_type = BT_LE_SCAN_TYPE_ACTIVE;
 	scan_generation = 0;
@@ -183,6 +188,45 @@ static void test_fragmentation_and_validation(void)
 	operation_lock.held = true;
 	assert(gateway_display_text((const uint8_t *)"busy", 4, 5000) == -EBUSY);
 	assert(writes == 0);
+}
+
+static void test_retained_link_diagnostics(void)
+{
+	char json[512];
+	reset(ATT_REJECT);
+	assert(gateway_display_text((const uint8_t *)"hello", 5, 5000) == -EIO);
+	assert(kit_diag.commands == 1 && kit_diag.failures == 1);
+	assert(kit_diag.failure_att == 0x13 && kit_diag.failure_enqueue == 0);
+	assert(!kit_diag.failure_ack && kit_diag.failure_fragment == 0);
+	assert(kit_diag.disconnects == 1 && kit_diag.disconnect_reason == 19);
+	/* Recovery must not erase the cause before the host can read it. */
+	delivery = ACK_FIRST;
+	closed = false;
+	state.ble_connected = state.lcd_ready = true;
+	connected(&peripheral, 0);
+	assert(gateway_display_text((const uint8_t *)"next", 4, 5000) == 0);
+	assert(kit_diag.connections == 1 && kit_diag.commands == 2 && kit_diag.failures == 1);
+	assert(kit_diag.failure == -EIO && kit_diag.failure_att == 0x13);
+	int size = gateway_kit_diagnostics(json, sizeof(json));
+	assert(size > 0 && size == (int)strlen(json));
+	assert(strstr(json, "\"attError\":19") && strstr(json, "\"ackReceived\":false"));
+	assert(strstr(json, "hello") == NULL && strstr(json, KIT_NAME) == NULL);
+	assert(gateway_kit_diagnostics(json, (size_t)size + 1) == size);
+	assert(gateway_kit_diagnostics(json, (size_t)size) == -ENOSPC && !json[0]);
+	assert(gateway_kit_diagnostics(NULL, sizeof(json)) == -EINVAL);
+	assert(gateway_kit_diagnostics(json, 0) == -EINVAL);
+	reset(OLED_ERROR);
+	assert(gateway_display_text((const uint8_t *)"hello", 5, 5000) == -EIO);
+	assert(kit_diag.failure_ack && kit_diag.failure_att == 0 && kit_diag.disconnects == 0);
+	reset(ENQUEUE_ERROR);
+	assert(gateway_display_text((const uint8_t *)"hello", 5, 5000) == -ENOMEM);
+	assert(kit_diag.failure_enqueue == -ENOMEM && kit_diag.failure_att == 0);
+	memset(&kit_diag, 0xff, sizeof(kit_diag));
+	kit_diag.failure_ack = true;
+	connected(&peripheral, 0);
+	disconnected(&peripheral, 8);
+	assert(kit_diag.connections == UINT32_MAX && kit_diag.disconnects == UINT32_MAX);
+	assert(gateway_kit_diagnostics(json, sizeof(json)) > 0);
 }
 
 static void advertisement(const bt_addr_le_t *address, bool name, const char *text)
@@ -524,6 +568,7 @@ int main(void)
 	test_ack_orders();
 	test_errors_and_timeouts();
 	test_fragmentation_and_validation();
+	test_retained_link_diagnostics();
 	test_explicit_selection_and_freshness();
 	test_wifi_discovery_scheduling();
 	test_controller_initialization_after_ipv4();

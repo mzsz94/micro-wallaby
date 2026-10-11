@@ -53,6 +53,7 @@ int gateway_lcd_command(const uint8_t *data, size_t len,
 #if defined(CONFIG_GATEWAY_NU40_KIT)
 int gateway_peer_candidates(char *json, size_t capacity);
 int gateway_scan_diagnostics(char *json, size_t capacity);
+int gateway_kit_diagnostics(char *json, size_t capacity);
 /* Queue an active/passive scan-mode change; never interrupt an active peer. */
 int gateway_scan_mode(const char *mode);
 int gateway_select_peer(const char *address, const char *type);
