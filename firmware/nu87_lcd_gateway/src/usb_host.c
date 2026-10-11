@@ -20,6 +20,14 @@ static uint8_t tx_packet[USB_RPC_HEADER + USB_RPC_BODY_MAX + 4];
 static uint8_t tx_wire[USB_RPC_WIRE_MAX];
 static struct usb_rpc_session session;
 
+static void put_binary(uint8_t byte)
+{
+	/* LOGUART_PutChar inserts CR after LF, including inside COBS headers and
+	 * CRC bytes. Raw UART TX must preserve every byte of the binary frame. */
+	while (!UART_Writable(LOGUART_DEV)) { }
+	UART_CharPut(LOGUART_DEV, byte);
+}
+
 K_SEM_DEFINE(rx_start, 0, 1);
 static void receive(void *one, void *two, void *three)
 {
@@ -55,9 +63,9 @@ static void reply(void *user, int code, const void *body, size_t length, const c
 	usb_rpc_put32(tx_packet + size, usb_rpc_crc(tx_packet, size));
 	size_t wire_size = usb_rpc_encode(tx_packet, size + 4, tx_wire, sizeof(tx_wire));
 	if (!wire_size) { return; }
-	uart_poll_out(console, 0);
-	for (size_t i = 0; i < wire_size; i++) { uart_poll_out(console, tx_wire[i]); }
-	uart_poll_out(console, 0);
+	put_binary(0);
+	for (size_t i = 0; i < wire_size; i++) { put_binary(tx_wire[i]); }
+	put_binary(0);
 }
 
 static void execute(size_t length)
