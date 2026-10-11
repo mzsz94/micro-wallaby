@@ -457,7 +457,7 @@
     "OLED preview is host-rendered; the recording is not a camera view.",
     "The actual IMU remained stationary during this UI check; driving is virtual.",
     "Silent armed frames verify audio transport, not physical microphone capture or speech recognition.",
-    "BLE timeout 0x08 remains observed; continuous wireless stability is not established.",
+    "BLE timeout 0x08 was observed before the central 4 s supervision policy. The subsequent five-minute capture had no BLE disconnects, but Host freshness gaps remain; long-term stability is not established.",
     "The later timing capture overlapped Windows Modern Standby and a Wi-Fi network change; it is excluded from continuous stability results."
   ],
   "nu87_channel_recovery": {
@@ -583,5 +583,178 @@
     "quiet_wall_seconds": 120.0027961730957,
     "disconnect_delta": 2,
     "interpretation": "Two BLE timeouts also occurred without HostPC input polling/output. This does not identify the RF/controller cause."
+  },
+  "connection_supervision_bench": {
+    "source_commit": "edc5094",
+    "nu87_app_file_sha256": "c7d55d6dd181af0dedf7393587bcc0aa68d2e006354ad767f6e8df8cf35e5762",
+    "first_negotiated_link": {
+      "connections": 1,
+      "disconnects": 0,
+      "commands": 9,
+      "failures": 0,
+      "lastFailure": 0,
+      "failureAtMs": 0,
+      "attError": 0,
+      "enqueueError": 0,
+      "fragment": 0,
+      "ackReceived": false,
+      "disconnectReason": -1,
+      "disconnectAtMs": 0,
+      "paramRequests": 1,
+      "shortTimeoutRequests": 1,
+      "requestedTimeout": 42,
+      "paramUpdates": 1,
+      "paramsKnown": true,
+      "params": [
+        36,
+        0,
+        400
+      ],
+      "minTimeout": 400
+    },
+    "interval_units_ms": 1.25,
+    "timeout_units_ms": 10,
+    "physical_requested_timeout_ms": 420,
+    "completed_interval_ms": 45.0,
+    "completed_timeout_ms": 4000,
+    "host_freshness_ms_unchanged": 1500,
+    "oled_measurement_expiry_ms_unchanged": 3000,
+    "confirmed_app_check": {
+      "checked_at": 1791700545.4624474,
+      "images": {
+        "images": [
+          {
+            "slot": 0,
+            "version": "0.2.2",
+            "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+            "bootable": true,
+            "pending": false,
+            "confirmed": true,
+            "active": true,
+            "permanent": false
+          },
+          {
+            "slot": 1,
+            "version": "0.2.0",
+            "hash": "543863dfe6a4f89f3e0895ca75fa45de3f95511ee2111eb630260104acfa41e8",
+            "bootable": true,
+            "pending": false,
+            "confirmed": false,
+            "active": false,
+            "permanent": false
+          }
+        ],
+        "splitStatus": 0
+      },
+      "physical_imu_sample": 9538,
+      "physical_imu_errors": 0,
+      "oled_driver_ack": true,
+      "alarm_clear_ack": true,
+      "audio_transport": {
+        "received": 4,
+        "dropped": 0,
+        "frames_decoded": 4,
+        "sequences": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "max_abs_pcm": 0,
+        "scope": "Armed transport/keepalive only; no physical BTN2/BTN3 or acoustic capture claim."
+      },
+      "confirmation_sent": false
+    },
+    "measurement_status": "completed",
+    "live_measurement": {
+      "summary": {
+        "started_at": 1791700607.4027276,
+        "seconds": 301.9621679959819,
+        "wall_seconds": 301.9621720314026,
+        "max_clock_difference_s": 0.009410061000380665,
+        "snapshots": 1500,
+        "stale_snapshots": 16,
+        "input_updates": 996,
+        "input_gap_max_s": 2.599937293038238,
+        "input_gap_p95_s": 0.6001647940138355,
+        "oled_acks": 234,
+        "oled_gap_max_s": 3.399949992017355,
+        "oled_gap_p95_s": 1.6002275220234878,
+        "oled_error_snapshots": 0,
+        "capture_errors": 0,
+        "sensor_errors_max": 0,
+        "uptime_regressions": 0,
+        "boundary": "Actual NU87 I2C and matching OLED driver ACKs; physical pixels unobserved; 200ms quantization; two scan probes plus error-triggered probes."
+      },
+      "diagnostics": [
+        {
+          "elapsed_s": 0.36741712398361415,
+          "label": "start",
+          "link": {
+            "connections": 1,
+            "disconnects": 0,
+            "commands": 97,
+            "failures": 0,
+            "lastFailure": 0,
+            "failureAtMs": 0,
+            "attError": 0,
+            "enqueueError": 0,
+            "fragment": 0,
+            "ackReceived": false,
+            "disconnectReason": -1,
+            "disconnectAtMs": 0,
+            "paramRequests": 1,
+            "shortTimeoutRequests": 1,
+            "requestedTimeout": 42,
+            "paramUpdates": 1,
+            "paramsKnown": true,
+            "params": [
+              36,
+              0,
+              400
+            ],
+            "minTimeout": 400
+          }
+        },
+        {
+          "elapsed_s": 301.96076472999994,
+          "label": "end",
+          "link": {
+            "connections": 1,
+            "disconnects": 0,
+            "commands": 331,
+            "failures": 0,
+            "lastFailure": 0,
+            "failureAtMs": 0,
+            "attError": 0,
+            "enqueueError": 0,
+            "fragment": 0,
+            "ackReceived": false,
+            "disconnectReason": -1,
+            "disconnectAtMs": 0,
+            "paramRequests": 1,
+            "shortTimeoutRequests": 1,
+            "requestedTimeout": 42,
+            "paramUpdates": 1,
+            "paramsKnown": true,
+            "params": [
+              36,
+              0,
+              400
+            ],
+            "minTimeout": 400
+          }
+        }
+      ]
+    },
+    "interpretation": "No BLE disconnect or OLED write failure during this five-minute capture. Host input exceeded its unchanged 1.5 s freshness limit in 16 of 1500 snapshots; maximum input gap 2.60 s. This does not establish long-term stability.",
+    "operator_observation": {
+      "source": "user observation in active session",
+      "recorded_at": 1791701126.8480592,
+      "physical_face_and_numbers_respond_to_imu": true,
+      "near_180_degree_rotation_can_show_stale": true,
+      "camera_recording": false,
+      "scope": "Operator confirmed physical response, then reported STALE near 180 degrees and requested lower latency."
+    }
   }
 }
