@@ -4,6 +4,9 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
+#include <zephyr/init.h>
+#include <zephyr/irq.h>
+#include <zephyr/logging/log_ctrl.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/ring_buffer.h>
 
@@ -16,6 +19,15 @@ static uint8_t encoded[1536], decoded[1536];
 static uint8_t tx_packet[USB_RPC_HEADER + USB_RPC_BODY_MAX + 4];
 static uint8_t tx_wire[USB_RPC_WIRE_MAX];
 static struct usb_rpc_session session;
+
+static int defer_console_irq(void)
+{
+	/* ROM leaves console interrupt sources enabled. Until the shared RF's
+	 * polling startup prompt is consumed, the Zephyr ISR has no RX owner. */
+	irq_disable(DT_IRQN(DT_CHOSEN(zephyr_console)));
+	return 0;
+}
+SYS_INIT(defer_console_irq, PRE_KERNEL_2, 0);
 
 static void receive(const struct device *dev, void *user)
 {
@@ -82,8 +94,12 @@ void gateway_usb_run(void)
 	 * prompt completes. The host acknowledges that exact RAM prompt once.
 	 * Association and DHCP are unnecessary for this transport. */
 	while (wifi_is_running(0) <= 0) { k_sleep(K_MSEC(20)); }
+	log_flush();
+	const struct log_backend *backend = log_backend_get_by_name("log_backend_uart");
+	if (backend) { log_backend_disable(backend); }
 	if (uart_irq_callback_user_data_set(console, receive, NULL) != 0) { return; }
 	uart_irq_rx_enable(console);
+	irq_enable(DT_IRQN(DT_CHOSEN(zephyr_console)));
 	static const char ready[] = "\r\nMWUSB|READY version=1 transport=usb\r\n";
 	for (size_t i = 0; i < sizeof(ready) - 1; i++) { uart_poll_out(console, ready[i]); }
 	size_t used = 0;

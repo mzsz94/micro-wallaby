@@ -65,7 +65,9 @@ interrupt capability and several HAL shims. The USB build supplies those shims
 inside this app using the UART2 ROM functions and Zephyr IRQ locking. It does not
 change the SDK or pins. AmebaD has no Dplus LOGUART ICR register: the shim reads
 line status and the RX handler drains the FIFO to clear timeout conditions.
-UART log backend is disabled in USB mode; framed responses use the console UART.
+Console IRQ delivery is deferred until the vendor polling startup completes.
+Startup logs remain visible; after RF readiness the UART log backend is disabled
+before framed traffic begins. Framed responses then use the console UART.
 
 ## Validation
 
