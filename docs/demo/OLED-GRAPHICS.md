@@ -74,7 +74,8 @@ NU40 소스 저장소:
 [nu40-ble-display / feat/military-oled-graphics](https://github.com/mzsz94/nu40-ble-display/tree/feat/military-oled-graphics).
 HostPC·NU87 작업은 `test/military-wallaby`에서 이어진 `feat/military-wallaby-oled-graphics`에 있습니다.
 현재 저장소의 `firmware/nu40_voice`는 이 그래픽 소스에 BTN2 녹음·BTN3 전송을 통합한
-`0.2.1`입니다. 그래픽의 마지막 상태 행에 녹음 안내를 함께 표시합니다. 아래 실기 기록은
+`0.2.2`입니다. 그래픽의 마지막 상태 행에 녹음 안내를 함께 표시하고, 저장된 BLE 알림
+구독의 재연결 처리를 수정했습니다. 아래 실기 기록은
 기존 `0.2.0`에 해당하며, 통합 버전의 빌드와 시험 범위는
 [`voice_tactical/VALIDATION.md`](../../voice_tactical/VALIDATION.md)에 별도로 기록합니다.
 
