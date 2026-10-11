@@ -22,7 +22,7 @@ NU87 중계 → BLE SMP → NU40 펌웨어 OTA 구성 및 검증 범위를 정�
 **[실제 로컬 음성 처리 GIF·MP4](docs/demo/VOICE-CHECK.md)** — 합성 한국어 WAV → Whisper →
 llama.cpp → NU87 Wi-Fi → NU40 BLE 표시 ACK를 별도로 확인했습니다. 음성 오인식도 기록합니다.
 
-`test/military-wallaby`는 **NU40DK 컨트롤 타워의 PDM 마이크 → BLE → NU87 Tiny 왈라비
+`feat/military-wallaby-oled-graphics`는 **NU40DK 컨트롤 타워의 PDM 마이크 → BLE → NU87 Tiny 왈라비
 → Wi-Fi → HostPC 로컬 Whisper·LLM 서버 → NU87 명령 수락 → Motion Lab 동작**을
 연결하는 미니 프로젝트입니다. 음성 질의, 상황 보고 요약·SALUTE 변환, 명령 정리,
 로컬 기록 검색을 제공합니다. BTN4로 폭발물 감지를 모사하면 NU40의 MAX98357A·스피커가
@@ -30,9 +30,11 @@ llama.cpp → NU87 Wi-Fi → NU40 BLE 표시 ACK를 별도로 확인했습니다
 
 보드 음성 입력은 **BTN2로 녹음 시작 → 말하기 → BTN3로 녹음 종료·전송** 순서입니다.
 최대 10초를 보드에 보관하고 BTN3를 누를 때만 녹음한 음성을 NU87로 전송합니다.
-먼저 HostPC의 NU87 연결을 설정하고 웹에서 `NU 40DK · 키트 PDM 마이크`를 선택해
-`마이크 켜기`를 누르세요. 수신 화면을 열어 둔 상태로 보드 버튼을 사용합니다.
-NU87 펌웨어와 HostPC 수신 프로토콜은 그대로 사용하며 NU40 펌웨어만 변경합니다.
+먼저 HostPC의 NU87 연결을 설정하고 웹에서 `NU 40DK · BTN2 녹음 / BTN3 전송`을 선택해
+`버튼 입력 준비`를 누르세요. 수신 화면을 열어 둔 상태로 보드 버튼을 사용합니다.
+버튼 입력과 녹음은 NU40에서 처리하며 기존 NU87 BLE 음성 프로토콜을 사용합니다.
+통합 NU40 펌웨어 `0.2.1`은 얼굴·수평계 그래픽과 녹음 상태를 함께 표시하고,
+경고와 측정 끊김을 우선 표시합니다.
 
 ```sh
 python3 -m voice_tactical.server

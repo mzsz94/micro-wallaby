@@ -6,7 +6,15 @@ export function createLiveImuControl(sim, { now = () => performance.now() } = {}
   const view = createAttitudeView();
   const clamp = (v, limit) => Math.max(-limit, Math.min(limit, v));
   function update(state) {
-    if (!state || state.source !== 'nu87-i2c' || state.enabled !== true) return false;
+    if (!state || state.source !== 'nu87-i2c' || typeof state.enabled !== 'boolean') return false;
+    if (!state.enabled) {
+      if (received !== null) sim.command('stop');
+      received = sequence = null;
+      blocked = false;
+      reference = [0, 0, 1];
+      view.update(null);
+      return true;
+    }
     received = now();
     blocked = state.motion_blocked === true;
     if (blocked) sim.command('stop');

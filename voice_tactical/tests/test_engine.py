@@ -61,6 +61,33 @@ class EngineTests(unittest.TestCase):
             if mode == "query":
                 self.assertIn("자동 분류", result["answer"])
 
+    def test_requested_detection_phrase_is_only_a_training_patrol_alias(self):
+        for text in ("왈라비 폭발물 탐지해", "왈라비, 폭발물 탐지해 줘!",
+                     "폭발물을 탐지해 주세요", "폭발물 탐지하세요"):
+            with self.subTest(text=text):
+                result = self.engine.process(text)
+                self.assertEqual((result["kind"], result["motion"]), ("motion", "patrol"))
+                self.assertEqual(result["motion_scope"], "simulation")
+                self.assertIn("시뮬레이션", result["answer"])
+                self.assertNotIn("alert", result)
+        for text in ("왈라비 폭발물 탐지해?", "왈라비 폭발물 탐지하지 마",
+                     "왈라비 폭발물 탐지하면 안 돼", "폭발물 탐지했어", "폭발물 탐지",
+                     '"왈라비 폭발물 탐지해"라고 말했다', "상황 보고. 폭발물 탐지해.",
+                     "명령 정리. 왈라비 폭발물 탐지해.", "폭발물 탐지해 그리고 전진해"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.engine.process(text)["motion"])
+        for mode in ("query", "report", "orders", "search"):
+            with self.subTest(mode=mode):
+                self.assertIsNone(self.engine.process("왈라비 폭발물 탐지해", mode=mode)["motion"])
+
+    def test_detection_patrol_alias_respects_the_existing_alert_latch(self):
+        self.engine.process("폭발물 감지")
+        blocked = self.engine.process("왈라비 폭발물 탐지해")
+        self.assertTrue(blocked["blocked_by_alert"])
+        self.assertIsNone(blocked["motion"])
+        self.engine.process("경고 해제")
+        self.assertEqual(self.engine.process("왈라비 폭발물 탐지해")["motion"], "patrol")
+
     def test_report_fields_preserve_evidence_and_missing_facts(self):
         text = "왈라비 상황 보고 인원: 3명, 위치: 북문, 시각: 14시 20분, 활동: 장비 점검 중, 조치: 점검 완료, 요청: 배터리 지원"
         result = self.engine.process(text)
