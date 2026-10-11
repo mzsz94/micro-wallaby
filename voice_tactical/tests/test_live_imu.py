@@ -37,7 +37,11 @@ class LiveImuTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.engine = Engine(Path(self.temp.name))
         self.time = 0.0
-        self.imu = LiveImu(None, self.engine, enabled=True, clock=lambda: self.time)
+        self.wall_offset = 0.0
+        self.imu = LiveImu(
+            None, self.engine, enabled=True, clock=lambda: self.time,
+            wall_clock=lambda: self.time + self.wall_offset,
+        )
 
     def feed(self, seq, tilt=0, **changes):
         self.time += 0.2
@@ -83,6 +87,49 @@ class LiveImuTests(unittest.TestCase):
         self.imu.feed(packet(1))
         self.assertFalse(self.imu.snapshot()["fresh"])
         self.assertIsNone(self.imu.snapshot()["orientation"])
+
+    def test_host_standby_expires_input_when_monotonic_clock_is_paused(self):
+        self.reference()
+        self.wall_offset += 70 * 60
+        state = self.imu.snapshot()
+        self.assertFalse(state["fresh"])
+        self.assertTrue(state["motion_blocked"])
+        self.assertIsNone(state["orientation"])
+        self.assertGreaterEqual(state["host_age_ms"], 70 * 60 * 1000)
+        # Re-reading the same sensor sequence cannot renew it after resume.
+        self.imu.feed(packet(15))
+        self.assertFalse(self.imu.snapshot()["fresh"])
+
+    def test_backward_wall_clock_correction_does_not_renew_old_input(self):
+        self.feed(1)
+        self.wall_offset -= 60
+        self.assertFalse(self.imu.snapshot()["fresh"])
+        self.feed(2)
+        self.assertTrue(self.imu.snapshot()["fresh"])
+
+    def test_new_sample_after_standby_cancels_old_patrol_and_tilt_dwell(self):
+        self.reference()
+        reference = list(self.imu.reference)
+        self.feed(20, 50)
+        self.imu.set_virtual_motion("patrol")
+        self.wall_offset += 70 * 60
+        self.time += 0.7
+        self.feed(21, 50)
+        self.assertTrue(self.imu.snapshot()["fresh"])
+        self.assertFalse(self.imu.latched)
+        self.assertEqual(self.imu.reference, reference)
+        self.assertEqual(self.imu.virtual_motion, "stop")
+
+    def test_reference_does_not_combine_samples_across_host_standby(self):
+        self.feed(1)
+        self.imu.calibrate()
+        for seq in range(2, 13):
+            self.feed(seq)
+        self.assertIsNotNone(self.imu.reference_samples)
+        self.wall_offset += 70 * 60
+        self.feed(13)
+        self.assertIsNone(self.imu.reference_samples)
+        self.assertIsNone(self.imu.reference)
 
     def test_raw_axes_preserved_and_gravity_attitude_computed(self):
         self.feed(1, 30)

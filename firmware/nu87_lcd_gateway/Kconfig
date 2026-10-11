@@ -39,8 +39,9 @@ config GATEWAY_WIFI_CHANNEL
 	range 0 14
 	default 0
 	help
-	  Use the AP's observed channel to avoid a full-band association scan.
-	  Leave zero for networks whose channel may change.
+	  Try the AP's observed channel on the first association attempt. Later
+	  attempts scan all channels so a restarted hotspot can change channel.
+	  Leave zero to scan all channels from the first attempt.
 choice GATEWAY_WIFI_SECURITY
 	prompt "Wi-Fi security"
 	default GATEWAY_WIFI_SECURITY_OPEN

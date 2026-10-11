@@ -33,8 +33,11 @@ def valid_packet(packet):
 
 
 class LiveImu:
-    def __init__(self, gateway, engine, *, enabled=False, clock=time.monotonic):
+    def __init__(
+        self, gateway, engine, *, enabled=False, clock=time.monotonic, wall_clock=time.time
+    ):
         self.gateway, self.engine, self.enabled, self.clock = gateway, engine, enabled, clock
+        self.wall_clock = wall_clock
         self.lock = threading.RLock()
         self.stop = threading.Event()
         self.worker = None
@@ -44,6 +47,7 @@ class LiveImu:
         self.reference_samples = None
         self.reference_started = None
         self.last_received = None
+        self.last_received_wall = None
         self.last_uptime = None
         self.last_sequence = None
         self.over_since = None
@@ -89,6 +93,14 @@ class LiveImu:
         self.events.append(event)
         self.engine.record_sensor_event(event)
 
+    def _sample_age(self, now, wall_now):
+        if self.last_received is None:
+            return None
+        # WSL's monotonic clock can pause with the host during Modern Standby.
+        # A wall-clock discontinuity also expires old input until a new sequence
+        # arrives. Neither a paused VM nor a clock correction renews a sample.
+        return max(0, now - self.last_received, abs(wall_now - self.last_received_wall))
+
     def feed(self, packet):
         with self.lock:
             if not valid_packet(packet):
@@ -112,11 +124,18 @@ class LiveImu:
             self.last_uptime = packet["uptimeMs"]
             if packet["sample"] == self.last_sequence:
                 return False
-            now = self.clock()
+            now, wall_now = self.clock(), self.wall_clock()
             dt = None if self.last_received is None else now - self.last_received
-            if self.last_received is not None and now - self.last_received > 1.5:
+            age = self._sample_age(now, wall_now)
+            if age is not None and age > 1.5:
                 self.over_since = None
+                self.reference_samples = None
+                self.display_orientation = None
+                self.virtual_motion = "stop"
+                self.virtual_motion_until = 0
+                self.display_hold_until = 0
             self.last_received, self.last_sequence = now, packet["sample"]
+            self.last_received_wall = wall_now
             self.packet = deepcopy(packet)
             self.error = None
             accel = [value / 1000 for value in packet["accelMg"]]
@@ -214,7 +233,9 @@ class LiveImu:
 
     def snapshot(self):
         with self.lock:
-            age = None if self.last_received is None else (self.clock() - self.last_received) * 1000
+            age = self._sample_age(self.clock(), self.wall_clock())
+            if age is not None:
+                age *= 1000
             fresh = age is not None and age <= 1500 and self.error is None
             return {
                 "enabled": self.enabled,

@@ -32,10 +32,12 @@ existing configuration helper preserves the API token when reconfiguring Wi-Fi.
 The default `CONFIG_GATEWAY_WIFI_CHANNEL=0` scans all channels. If the vendor
 reports AP scan failure (`-4108`) while the PC sees that AP, a known 2.4 GHz
 channel can be set in private `local.conf`, for example
-`CONFIG_GATEWAY_WIFI_CHANNEL=1`. Verify the actual AP channel first. This does
-not change the password, security mode or RF calibration; set it back to zero
-if the AP changes channel. A channel hint is a recovery attempt, not proof of
-the cause of a reset or a successful association.
+`CONFIG_GATEWAY_WIFI_CHANNEL=1`. The hint applies to the first association attempt
+after boot; later attempts scan all 2.4 GHz channels. A phone hotspot can change
+channel on restart, so an old hint must not prevent reconnection. Zero scans all
+channels immediately. This does not change the password, security mode or RF
+calibration. A channel hint is a recovery attempt, not proof of the cause of a
+reset or a successful association.
 
 ```bash
 bash firmware/nu87_lcd_gateway/build.sh

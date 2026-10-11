@@ -76,10 +76,13 @@ static uint32_t generation, cancel_generation, timeout_generation;
 static int64_t disconnect_deadline_ms, timeout_deadline_ms, now;
 static unsigned disconnect_idle_samples;
 static bool association_complete, connect_result_ok, address_valid;
+static bool channel_hint_tried;
 static char ipv4_address[16];
 static int radio_result, radio_state, query_count, schedules, retries;
 static int stops, carrier_off, queued_cancellations, cancelled_timeouts, ready_logs;
 static int connect_behavior;
+static unsigned connect_calls;
+static int last_connect_channel;
 static void k_mutex_lock(void *p, int t) { (void)p; (void)t; }
 static void k_mutex_unlock(void *p) { (void)p; }
 static void atomic_clear(int *p) { *p = 0; }
@@ -125,8 +128,13 @@ static int net_mgmt(int request, struct net_if *p, void *params, size_t size) {
     (void)p; (void)params; (void)size;
     assert(request == NET_REQUEST_WIFI_CONNECT);
     struct wifi_connect_req_params *wifi = params;
-    assert(wifi->channel == (CONFIG_GATEWAY_WIFI_CHANNEL ?
+    connect_calls++;
+    last_connect_channel = wifi->channel;
+    assert(wifi->channel == (CONFIG_GATEWAY_WIFI_CHANNEL && connect_calls == 1 ?
                             CONFIG_GATEWAY_WIFI_CHANNEL : WIFI_CHANNEL_ANY));
+    if (connect_behavior == 3) {
+        return -EAGAIN; /* The AP is absent from the old channel. */
+    }
     if (connect_behavior == 1) {
         /* The real timeout fires while the blocking vendor connect runs. */
         now = timeout_deadline_ms;
@@ -149,6 +157,7 @@ static void reset(void) {
     query_count = schedules = retries = stops = carrier_off = 0;
     queued_cancellations = cancelled_timeouts = ready_logs = connect_behavior = 0;
     association_complete = connect_result_ok = address_valid = false;
+    channel_hint_tried = false; connect_calls = 0; last_connect_channel = 0;
     ipv4_ready = 0; memset(&iface, 0, sizeof(iface)); ipv4_address[0] = 0;
 }
 int main(void) {
@@ -203,6 +212,22 @@ int main(void) {
     connect_work_handler(NULL);
     assert(phase == WIFI_PHASE_READY && ipv4_ready == 1 && ready_logs == 1);
     assert(cancelled_timeouts == 1 && retries == 0);
+
+    /* An old hotspot channel must not strand all later association attempts. */
+    reset(); phase = WIFI_PHASE_CANCEL_PENDING;
+    connect_work_handler(NULL);
+    assert(connect_calls == 0 && !channel_hint_tried);
+    phase = WIFI_PHASE_RETRY_WAIT; connect_behavior = 3;
+    connect_work_handler(NULL);
+    assert(phase == WIFI_PHASE_RETRY_WAIT && retries == 1 && connect_calls == 1);
+    assert(last_connect_channel == (CONFIG_GATEWAY_WIFI_CHANNEL ?
+                                   CONFIG_GATEWAY_WIFI_CHANNEL : WIFI_CHANNEL_ANY));
+    connect_work_handler(NULL);
+    assert(connect_calls == 2 && last_connect_channel == WIFI_CHANNEL_ANY);
+    connect_behavior = 2;
+    connect_work_handler(NULL);
+    assert(phase == WIFI_PHASE_READY && ipv4_ready == 1 && connect_calls == 3);
+    assert(last_connect_channel == WIFI_CHANNEL_ANY);
     puts("Wi-Fi cancellation and current-lease source-function tests passed");
 }
 """

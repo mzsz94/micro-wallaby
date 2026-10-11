@@ -69,6 +69,7 @@ static int64_t disconnect_deadline_ms;
 static unsigned int disconnect_idle_samples;
 static bool association_complete;
 static bool connect_result_ok;
+static bool channel_hint_tried;
 static bool address_valid;
 static atomic_t ipv4_ready;
 static char ipv4_address[NET_IPV4_ADDR_LEN];
@@ -369,8 +370,7 @@ static void connect_work_handler(struct k_work *work)
 		.ssid = (const uint8_t *)CONFIG_GATEWAY_WIFI_SSID,
 		.ssid_length = sizeof(CONFIG_GATEWAY_WIFI_SSID) - 1U,
 		.security = configured_security(),
-		.channel = CONFIG_GATEWAY_WIFI_CHANNEL ? CONFIG_GATEWAY_WIFI_CHANNEL :
-			WIFI_CHANNEL_ANY,
+		.channel = WIFI_CHANNEL_ANY,
 		.band = WIFI_FREQ_BAND_2_4_GHZ,
 	};
 	uint32_t work_generation;
@@ -386,6 +386,13 @@ static void connect_work_handler(struct k_work *work)
 		k_mutex_unlock(&state_lock);
 		return;
 	}
+	/* A phone hotspot can change channel whenever it restarts. Use the
+	 * configured hint once; subsequent attempts must search the whole band.
+	 */
+	if (CONFIG_GATEWAY_WIFI_CHANNEL && !channel_hint_tried) {
+		params.channel = CONFIG_GATEWAY_WIFI_CHANNEL;
+	}
+	channel_hint_tried = true;
 	work_generation = ++generation;
 	phase = WIFI_PHASE_CONNECTING;
 	association_complete = false;
@@ -403,8 +410,9 @@ static void connect_work_handler(struct k_work *work)
 		LOG_ERR("Failed to schedule Wi-Fi timeout: %d", timeout_ret);
 	}
 
-	LOG_INF("Connecting generation %u to configured isolated test AP (SSID length %zu)",
-		work_generation, sizeof(CONFIG_GATEWAY_WIFI_SSID) - 1U);
+	LOG_INF("Connecting generation %u to configured test AP (SSID length %zu, channel %u)",
+		work_generation, sizeof(CONFIG_GATEWAY_WIFI_SSID) - 1U,
+		(unsigned int)params.channel);
 	/* A Wi-Fi interface is not necessarily auto-started. wifi_mgmt rejects
 	 * an administratively down interface before calling the Ameba driver.
 	 * Recheck on each retry so a previous disconnect cannot strand the STA.
@@ -679,6 +687,7 @@ int gateway_wifi_start(void)
 	k_mutex_lock(&state_lock, K_FOREVER);
 	phase = WIFI_PHASE_RETRY_WAIT;
 	connect_result_ok = false;
+	channel_hint_tried = false;
 	clear_ipv4_locked();
 	k_mutex_unlock(&state_lock);
 	schedule_connect(K_MSEC(CONFIG_GATEWAY_WIFI_CONNECT_DELAY_MS));
