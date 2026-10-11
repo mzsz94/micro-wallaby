@@ -202,8 +202,10 @@ class Gateway:
         reusable = False
         # Start the reuse budget before the network round trip. A delayed
         # response can arrive after the firmware's 750 ms idle timer has
-        # already elapsed; receiving it must not grant another 400 ms.
-        reuse_until = time.monotonic() + 0.4
+        # already elapsed; receiving it must not restart the budget. Keep a
+        # 100 ms margin below the firmware's 750 ms idle timeout, while allowing
+        # ordinary 400-600 ms BLE ACKs to share a socket with the next sample.
+        reuse_until = time.monotonic() + 0.65
         try:
             connection.request(method, path, body, {
                 "Authorization": "Bearer " + self._token,

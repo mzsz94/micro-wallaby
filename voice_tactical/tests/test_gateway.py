@@ -256,7 +256,7 @@ class GatewayTests(unittest.TestCase):
         gateway = self.gateway()
         with patch("voice_tactical.gateway.time.monotonic", return_value=10):
             self.assertTrue(gateway.status()["ready"])
-        with patch("voice_tactical.gateway.time.monotonic", return_value=10.5):
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10.65):
             self.assertTrue(gateway.status()["ready"])
         self.assertEqual(len(transport.connections), 2)
         self.assertTrue(all(connection.closed for connection in transport.connections))
@@ -279,7 +279,7 @@ class GatewayTests(unittest.TestCase):
         with patch("voice_tactical.gateway.time.monotonic", return_value=10) as clock:
             class DelayedResponse(Response):
                 def read(self, size):
-                    clock.return_value = 10.6
+                    clock.return_value = 10.7
                     return super().read(size)
 
             transport = self.transport(DelayedResponse(value=STATUS, keep_alive=True),
@@ -287,10 +287,27 @@ class GatewayTests(unittest.TestCase):
             gateway = self.gateway()
             self.assertTrue(gateway.status()["ready"])
             self.assertTrue(transport.connections[0].closed)
-            clock.return_value = 10.7
+            clock.return_value = 10.8
             self.assertTrue(gateway.status()["ready"])
         self.assertEqual(len(transport.connections), 2)
         self.assertEqual(len(transport.calls), 2)
+
+    def test_moderately_delayed_ack_retains_only_the_remaining_socket_budget(self):
+        with patch("voice_tactical.gateway.time.monotonic", return_value=10) as clock:
+            class DelayedResponse(Response):
+                def read(self, size):
+                    clock.return_value = 10.55
+                    return super().read(size)
+
+            transport = self.transport(DelayedResponse(value=STATUS, keep_alive=True),
+                                       Response(value=STATUS))
+            gateway = self.gateway()
+            self.assertTrue(gateway.status()["ready"])
+            self.assertFalse(transport.connections[0].closed)
+            self.assertAlmostEqual(gateway._connection_until, 10.65)
+            clock.return_value = 10.6
+            self.assertTrue(gateway.status()["ready"])
+        self.assertEqual(len(transport.connections), 1)
 
     def test_failed_reused_display_connection_is_closed_without_retrying_command(self):
         transport = self.transport(Response(value=STATUS, keep_alive=True),
