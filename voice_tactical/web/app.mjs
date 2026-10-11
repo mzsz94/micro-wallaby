@@ -1,4 +1,5 @@
 import { startMicrophone, fileToWav } from './audio.mjs';
+import { createImuRelay } from './imu-relay.mjs';
 
 const $ = id => document.getElementById(id);
 const kinds = { query: '교범 질의', report: '상황 보고', orders: '명령 정리', search: '기록 검색', motion: '음성 동작', alert: '폭발물 감지 훈련 경고' };
@@ -13,6 +14,10 @@ let simReady = false, localVoice = null, peers = [];
 const boardSeen = new Set();
 const seenResults = new Set();
 let alertActive = false, alertPollPending = false, alertSyncEpoch = 0, alertRequestPending = false;
+let imuPollPending = false;
+const imuRelay = createImuRelay(message => $('simulator').contentWindow?.postMessage(message, location.origin), {
+  onBlocked: () => notice('실측 IMU 기울기 경고 또는 수신 끊김으로 가상 이동을 정지했습니다.', true),
+});
 
 function notice(message, error = false) { $('notice').textContent = message; $('notice').classList.toggle('error', error); }
 function describeError(error) {
@@ -31,6 +36,7 @@ async function api(path, { json, signal, ...options } = {}) {
   return value;
 }
 function postMotion(command) {
+  if (command !== 'stop' && imuRelay.blocked) { notice('실측 IMU 경고 또는 데이터 끊김으로 동작을 실행하지 않았습니다.', true); return; }
   if (!simReady && command !== 'stop') { notice('시뮬레이터가 아직 준비되지 않아 동작을 실행하지 않았습니다.', true); return; }
   $('simulator').contentWindow?.postMessage({ type: 'wallaby-voice-command', command }, location.origin);
 }
@@ -39,6 +45,7 @@ window.addEventListener('message', event => {
   if (event.data.type === 'wallaby-voice-ready') {
     simReady = true; $('sim-status').textContent = '시뮬레이터 준비 완료';
     $('simulator').contentWindow?.postMessage({ type: 'wallaby-alert', active: alertActive }, location.origin);
+    imuRelay.replay();
   }
   if (event.data.type === 'wallaby-voice-result') {
     const names = { stop: '정지', patrol: '훈련 구역 탐색', greet: '인사', dock: '도킹', forward: '전진', back: '후진', left: '좌회전', right: '우회전' };
@@ -55,19 +62,27 @@ setInterval(() => {
 
 function updateControls() {
   const active = micWanted && !micStarting;
-  $('mic-toggle').textContent = micStarting ? '연결 중…' : micStopping ? '중지 중…' : micWanted ? '마이크 끄기' : '마이크 켜기';
+  const board = $('input-source').value === 'board';
+  const boardProcessing = active && board && boardStatus?.generation === boardGeneration && boardStatus?.state === 'processing';
+  const processing = busy || boardProcessing;
+  $('mic-toggle').textContent = micStarting ? '연결 중…' : micStopping ? '중지 중…' : board ? (micWanted ? '버튼 입력 해제' : '버튼 입력 준비') : (micWanted ? '마이크 끄기' : '마이크 켜기');
   $('mic-toggle').disabled = micStarting || micStopping || alertActive || (!micWanted && !status?.stt?.ready);
   $('mic-toggle').setAttribute('aria-pressed', String(micWanted));
   $('input-source').disabled = micWanted || micStarting || micStopping;
   $('mode').disabled = micWanted && $('input-source').value === 'board';
-  $('send-text').disabled = busy;
-  $('audio-file').disabled = busy || !status?.stt?.ready;
-  $('speak-answer').disabled = !localVoice || !currentResult || busy || speaking;
-  $('edit-transcript').disabled = !currentResult || busy || micStarting || micStopping;
-  $('voice-orbit').classList.toggle('listening', active);
-  $('input-state').textContent = speaking ? '응답 재생 중' : busy ? '처리 중' : active ? 'LISTENING' : '대기';
-  $('voice-title').textContent = speaking ? '왈라비가 답하고 있습니다.' : busy ? '발화를 정리하고 있습니다.' : active ? '왈라비가 듣고 있습니다.' : '음성으로 시작해 보세요.';
-  $('voice-hint').textContent = active ? ($('input-source').value === 'board' ? 'NU 40DK의 PDM 마이크 → BLE → Wi-Fi → 로컬 AI' : '발화가 끝나면 자동으로 처리합니다. 응답 중에는 입력을 잠시 쉽니다.') : '입력 장치를 확인하고 마이크를 켜 주세요.';
+  $('send-text').disabled = processing;
+  $('audio-file').disabled = processing || !status?.stt?.ready;
+  $('speak-answer').disabled = !localVoice || !currentResult || processing || speaking;
+  $('edit-transcript').disabled = !currentResult || processing || micStarting || micStopping;
+  // The existing audio protocol exposes a host session, not BTN2/BTN3 state.
+  $('voice-orbit').classList.toggle('listening', active && !board);
+  $('audio-meter').hidden = board;
+  $('button-guide').hidden = !board;
+  $('vad-threshold').disabled = board;
+  $('audio-help').textContent = board ? 'NU40 버튼 녹음은 최대 10초입니다. 기존 수신기는 약 0.7초 침묵에 문장을 처리하므로, 짧은 한 문장씩 말하세요. PC 마이크 감도 설정은 보드에 적용되지 않습니다. WAV 파일은 최대 30초입니다.' : '값이 낮으면 작은 소리에도 반응합니다. 발화 종료 후 약 0.8초에 전송하며, 발화는 최대 20초입니다. WAV 파일은 최대 30초를 지원합니다.';
+  $('input-state').textContent = speaking ? '응답 재생 중' : processing ? 'HostPC 처리 중' : active ? (board ? '전송 세션 연결됨' : 'LISTENING') : '대기';
+  $('voice-title').textContent = speaking ? '왈라비가 답하고 있습니다.' : processing ? '발화를 정리하고 있습니다.' : active ? (board ? 'BTN2 녹음 · BTN3 전송' : '왈라비가 듣고 있습니다.') : board ? 'NU40 버튼으로 말해 보세요.' : '음성으로 시작해 보세요.';
+  $('voice-hint').textContent = speaking || processing ? (board ? '응답 처리와 읽어주기가 끝난 뒤 다음 BTN2 녹음을 시작하세요.' : '응답 중에는 마이크 입력을 잠시 쉽니다.') : active ? (board ? '이 화면을 열어 둔 채 NU40의 버튼을 누르세요. 실제 녹음 상태는 웹에서 확인할 수 없습니다.' : '발화가 끝나면 자동으로 처리합니다. 응답 중에는 입력을 잠시 쉽니다.') : board ? '먼저 버튼 입력 준비를 누른 뒤 NU40에서 녹음과 전송을 진행하세요.' : '입력 장치를 확인하고 마이크를 켜 주세요.';
 }
 function badge(id, text, state) { $(id).textContent = text; $(id.replace('-status', '-dot')).className = `status-dot ${state || ''}`; }
 function renderGateway(gateway) {
@@ -99,6 +114,19 @@ async function refreshStatus() {
     postMotion('stop');
     if (micWanted) await stopMicrophone();
   } finally { statusPending = false; updateControls(); }
+}
+
+async function pollImu() {
+  if (imuPollPending || document.hidden) return;
+  if (status?.imu?.enabled !== true) {
+    if (status?.imu?.enabled === false) imuRelay.accept(status.imu);
+    else if (!status) imuRelay.disconnected();
+    return;
+  }
+  imuPollPending = true;
+  try { imuRelay.accept(await api('/api/imu/status', { signal: AbortSignal.timeout(2000) })); }
+  catch { imuRelay.disconnected(); }
+  finally { imuPollPending = false; }
 }
 
 function setAlert(active) {
@@ -163,7 +191,7 @@ async function toggleMicrophone() {
       boardGateGeneration = result.gate_generation;
       if (!micWanted || token !== generation) { await api('/api/device-audio/stop', { json: {} }); return; }
       boardStatus = result;
-      notice('NU 40DK 키트 마이크를 켰습니다. 발화가 끝나면 HostPC에서 처리합니다.');
+      notice('버튼 입력 전송 세션을 준비했습니다. NU40 BTN2로 녹음하고 BTN3로 보내세요. 이 화면을 계속 열어 두세요.');
     } else {
       const capture = await startMicrophone({
         threshold: Number($('vad-threshold').value),
@@ -220,7 +248,7 @@ async function pollBoard() {
     const lease = micWanted && $('input-source').value === 'board' && boardGeneration !== null ? `?generation=${encodeURIComponent(boardGeneration)}` : '';
     const state = await api(`/api/device-audio/status${lease}`);
     boardStatus = state;
-    $('board-audio-status').textContent = state.error || (state.running ? `키트 ${state.state || '수신 중'}` : state.available ? '키트 오디오 준비' : '오디오 연결 필요');
+    $('board-audio-status').textContent = state.error || (state.running ? (state.state === 'processing' ? 'HostPC 음성 처리 중' : state.muted ? 'HostPC 입력 일시 차단' : '전송 세션 연결됨') : '버튼 입력 준비 필요');
     if (micWanted && $('input-source').value === 'board' && token === generation && !micStarting) {
       if (!state.running || state.error) {
         await stopAll(state.error || '키트 오디오 연결이 종료되어 녹음과 동작을 중지했습니다.');
@@ -238,12 +266,12 @@ async function pollBoard() {
   } catch (error) {
     $('board-audio-status').textContent = '키트 오디오 미확인';
     if (micWanted && $('input-source').value === 'board' && token === generation) await stopAll(`키트 오디오 상태를 확인할 수 없어 중지했습니다. ${describeError(error)}`);
-  } finally { boardPollPending = false; }
+  } finally { boardPollPending = false; updateControls(); }
 }
 
 function updateVoices() {
   localVoice = globalThis.speechSynthesis?.getVoices().find(voice => voice.localService === true && /^ko(?:-|_)/i.test(voice.lang)) || null;
-  $('tts-status').textContent = localVoice ? `로컬 한국어 음성: ${localVoice.name}. 재생 중과 종료 후 0.6초 동안 마이크 입력을 차단합니다.` : '로컬 한국어 음성이 없습니다. OS에서 한국어 음성을 설치하면 사용할 수 있습니다.';
+  $('tts-status').textContent = localVoice ? `로컬 한국어 음성: ${localVoice.name}. 재생 중과 종료 후 0.6초 동안 HostPC 입력을 차단합니다. NU40 버튼 녹음은 재생이 끝난 뒤 시작하세요.` : '로컬 한국어 음성이 없습니다. OS에서 한국어 음성을 설치하면 사용할 수 있습니다.';
   $('tts-enabled').disabled = !localVoice;
   if (!localVoice) $('tts-enabled').checked = false;
   $('speak-answer').disabled = !localVoice || !currentResult || busy || speaking;
@@ -483,23 +511,8 @@ window.addEventListener('pagehide', () => {
   fetch('/api/control/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', keepalive: true }).catch(() => {});
 });
 globalThis.speechSynthesis?.addEventListener('voiceschanged', updateVoices);
-updateVoices(); updateControls(); refreshStatus(); refreshRecords(); pollBoard(); pollAlerts();
+updateVoices(); updateControls(); refreshStatus(); refreshRecords(); pollBoard(); pollAlerts(); pollImu();
 setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
 setInterval(pollBoard, 1000);
 setInterval(pollAlerts, 1000);
-let imuPending = false, imuWasBlocked = false;
-async function pollLiveImu() {
-  if (imuPending || document.hidden || status?.imu?.enabled !== true) return;
-  imuPending = true;
-  try {
-    const state = await api('/api/imu/status');
-    $('simulator').contentWindow?.postMessage({ type: 'wallaby-imu', state }, location.origin);
-    if (state.motion_blocked && !imuWasBlocked) {
-      postMotion('stop');
-      notice('실측 IMU 기울기 경고 또는 수신 끊김으로 가상 이동을 정지했습니다.', true);
-    }
-    imuWasBlocked = state.motion_blocked;
-  } catch { postMotion('stop'); }
-  finally { imuPending = false; }
-}
-setInterval(pollLiveImu, 300);
+setInterval(pollImu, 300);
