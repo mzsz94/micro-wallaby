@@ -115,6 +115,7 @@ static void route(struct http_client *client, uint32_t source_ip,
 			int (*format)(char *, size_t);
 		} sections[] = {
 			{"adapter", gateway_scan_diagnostics},
+			{"link", gateway_kit_diagnostics},
 			{"hci", gateway_hci_diagnostics},
 			{"transport", gateway_hci_transport_diagnostics},
 			{"coex", gateway_coex_scan_diagnostics},

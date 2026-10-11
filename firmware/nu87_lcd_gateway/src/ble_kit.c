@@ -50,6 +50,18 @@ struct scan_counters {
 	uint32_t service, name, merged, full_table, errors;
 };
 static struct scan_counters scan_counts;
+/* Retain failures across a successful retry/reconnect. No text, addresses or
+ * pairing data are stored; the HTTP diagnostics can distinguish a render ACK
+ * from an ATT rejection without opening/resetting the USB console. */
+struct kit_diagnostics {
+	uint32_t connections, disconnects, commands, failures;
+	uint32_t failure_at, disconnect_at;
+	int failure, failure_att, failure_enqueue, failure_fragment, disconnect_reason;
+	bool failure_ack;
+};
+static struct kit_diagnostics kit_diag = { .disconnect_reason = -1 };
+static uint8_t current_att_error;
+static int current_enqueue_error;
 static bool scan_active;
 static uint8_t requested_scan_type = BT_LE_SCAN_TYPE_ACTIVE;
 static uint8_t active_scan_type = BT_LE_SCAN_TYPE_ACTIVE;
@@ -243,6 +255,26 @@ int gateway_scan_diagnostics(char *json, size_t capacity)
 	return count;
 }
 
+int gateway_kit_diagnostics(char *json, size_t capacity)
+{
+	if (json == NULL || capacity == 0) { return -EINVAL; }
+	k_spinlock_key_t key = k_spin_lock(&lock);
+	struct kit_diagnostics snapshot = kit_diag;
+	k_spin_unlock(&lock, key);
+	int count = snprintf(json, capacity,
+		"{\"connections\":%lu,\"disconnects\":%lu,\"commands\":%lu,\"failures\":%lu,"
+		"\"lastFailure\":%d,\"failureAtMs\":%lu,\"attError\":%d,\"enqueueError\":%d,"
+		"\"fragment\":%d,\"ackReceived\":%s,\"disconnectReason\":%d,\"disconnectAtMs\":%lu}",
+		(unsigned long)snapshot.connections, (unsigned long)snapshot.disconnects,
+		(unsigned long)snapshot.commands, (unsigned long)snapshot.failures,
+		snapshot.failure, (unsigned long)snapshot.failure_at, snapshot.failure_att,
+		snapshot.failure_enqueue, snapshot.failure_fragment,
+		snapshot.failure_ack ? "true" : "false", snapshot.disconnect_reason,
+		(unsigned long)snapshot.disconnect_at);
+	if (count < 0 || (size_t)count >= capacity) { json[0] = '\0'; return -ENOSPC; }
+	return count;
+}
+
 int gateway_peer_candidates(char *json, size_t capacity)
 {
 	struct candidate snapshot[KIT_CANDIDATES];
@@ -314,6 +346,7 @@ static void connected(struct bt_conn *conn, uint8_t error)
 		connect_done = true;
 		connect_error = error == 0 ? 0 : -ECONNREFUSED;
 		closed = error != 0;
+		if (!error) { count_report(&kit_diag.connections); }
 	}
 	k_spin_unlock(&lock, key);
 	k_sem_give(&link_event);
@@ -321,9 +354,11 @@ static void connected(struct bt_conn *conn, uint8_t error)
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	ARG_UNUSED(reason);
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	if (is_attempt(conn)) {
+		count_report(&kit_diag.disconnects);
+		kit_diag.disconnect_reason = reason;
+		kit_diag.disconnect_at = (uint32_t)k_uptime_get();
 		closed = true;
 		state.ble_connected = state.lcd_ready = false;
 		state.last_error = -ENOTCONN;
@@ -799,6 +834,7 @@ static void written(struct bt_conn *conn, uint8_t error, struct bt_gatt_write_pa
 {
 	ARG_UNUSED(params);
 	k_spinlock_key_t key = k_spin_lock(&lock);
+	current_att_error = error;
 	write_error = (conn != peer || closed) ? -ENOTCONN : error == 0 ? 0 : -EIO;
 	write_active = false;
 	k_spin_unlock(&lock, key);
@@ -822,7 +858,10 @@ static int send_to_handle(struct bt_conn *conn, uint16_t handle, const uint8_t *
 	k_spin_unlock(&lock, key);
 	int rc = bt_gatt_write(conn, &write_params);
 	if (rc != 0) {
-		key = k_spin_lock(&lock); write_active = false; k_spin_unlock(&lock, key);
+		key = k_spin_lock(&lock);
+		current_enqueue_error = rc;
+		write_active = false;
+		k_spin_unlock(&lock, key);
 		return rc;
 	}
 	remaining = deadline - k_uptime_get();
@@ -851,6 +890,9 @@ int gateway_display_text(const uint8_t *text, size_t length, int timeout_ms)
 	expected_sequence = current_sequence;
 	command_pending = true;
 	ack_received = final_chunk_submitted = false;
+	current_att_error = 0;
+	current_enqueue_error = 0;
+	count_report(&kit_diag.commands);
 	command_error = -EINPROGRESS;
 	k_sem_reset(&command_done);
 	k_spin_unlock(&lock, key);
@@ -858,7 +900,9 @@ int gateway_display_text(const uint8_t *text, size_t length, int timeout_ms)
 	int64_t fragment_deadline = start + MIN(timeout_ms, KIT_FRAGMENT_MS);
 	int64_t deadline = start + timeout_ms;
 	int rc = 0;
+	uint8_t fragment = 0;
 	for (uint8_t chunk = 0; (size_t)chunk * BLE_DISPLAY_CHUNK < length; chunk++) {
+		fragment = chunk;
 		uint8_t frame[BLE_DISPLAY_FRAME_MAX];
 		size_t frame_length = ble_display_build_text((const char *)text, length, current_sequence, chunk, frame);
 		key = k_spin_lock(&lock);
@@ -878,6 +922,15 @@ int gateway_display_text(const uint8_t *text, size_t length, int timeout_ms)
 	else if (rc == 0) { rc = command_error == -EINPROGRESS ? -ETIMEDOUT : command_error; }
 	command_pending = false;
 	state.last_error = rc;
+	if (rc != 0) {
+		count_report(&kit_diag.failures);
+		kit_diag.failure = rc;
+		kit_diag.failure_at = (uint32_t)k_uptime_get();
+		kit_diag.failure_att = current_att_error;
+		kit_diag.failure_enqueue = current_enqueue_error;
+		kit_diag.failure_fragment = fragment;
+		kit_diag.failure_ack = ack_received;
+	}
 	bool break_link = rc != 0 && !ack_received;
 	if (break_link) { state.lcd_ready = false; }
 	k_spin_unlock(&lock, key);

@@ -24,7 +24,7 @@ static const char *input;
 static size_t remaining, sent_size, display_size;
 static char output[4096], display[85], selected[32];
 static int display_calls, select_calls, display_error;
-static int scan_error, transport_error, coex_error;
+static int scan_error, transport_error, coex_error, link_error;
 static int mode_calls, mode_error;
 static char scan_mode[8];
 static int audio_starts, audio_stops, audio_error;
@@ -67,6 +67,7 @@ void gateway_get_state(struct gateway_state *s) { memset(s,0,sizeof(*s));s->wifi
 void gateway_ota_status(char *s,size_t n) { snprintf(s,n,"{\"busy\":false}"); }
 int gateway_peer_candidates(char *s,size_t n) { return snprintf(s,n,"[{\"address\":\"C0:11:22:33:44:55\",\"type\":\"random\"}]"); }
 int gateway_scan_diagnostics(char *s,size_t n) { return scan_error ? -ENOSPC : snprintf(s,n,"{\"total\":3}"); }
+int gateway_kit_diagnostics(char *s,size_t n) { return link_error ? -ENOSPC : snprintf(s,n,"{\"failures\":2}"); }
 int gateway_hci_diagnostics(char *s,size_t n) { return snprintf(s,n,"{\"reports\":4}"); }
 int gateway_hci_transport_diagnostics(char *s,size_t n) { return transport_error ? (int)n : snprintf(s,n,"{\"uart_frames\":5}"); }
 int gateway_coex_scan_diagnostics(char *s,size_t n) { return coex_error ? -ENOSPC : snprintf(s,n,"{\"reports\":6}"); }
@@ -133,8 +134,9 @@ int main(void) {
  request("POST","/v1/peer","C0:11:22:33:44:55 random",23,true);expect(422);assert(select_calls==1);
  request("POST","/v1/peer","C0:11:22:33:44:55 bogus!",24,true);expect(422);assert(select_calls==1);
  request("GET","/v1/peers","",0,true);expect(200);assert(strstr(output,"{\"peers\":[{")!=NULL);
- request("GET","/v1/scan","",0,true);expect(200);assert(strstr(output,"{\"adapter\":{\"total\":3},\"hci\":{\"reports\":4},\"transport\":{\"uart_frames\":5},\"coex\":{\"reports\":6}}")!=NULL);
+ request("GET","/v1/scan","",0,true);expect(200);assert(strstr(output,"{\"adapter\":{\"total\":3},\"link\":{\"failures\":2},\"hci\":{\"reports\":4},\"transport\":{\"uart_frames\":5},\"coex\":{\"reports\":6}}")!=NULL);
  request("GET","/v1/scan","",0,false);expect(401);
+ link_error=1;request("GET","/v1/scan","",0,true);expect(503);link_error=0;
  transport_error=1;request("GET","/v1/scan","",0,true);expect(503);transport_error=0;
  coex_error=1;request("GET","/v1/scan","",0,true);expect(503);coex_error=0;
  scan_error=1;request("GET","/v1/scan","",0,true);expect(503);scan_error=0;
