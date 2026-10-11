@@ -1,0 +1,440 @@
+{
+  "schema": "military-wallaby-responsive-graphics/v1",
+  "source_commits": {
+    "main": "c58f99e",
+    "nu40_owner": "843ba5e",
+    "installed_nu87": "edc5094",
+    "host_transport": "79be06d"
+  },
+  "expected_nu40_version": "0.2.3",
+  "expected_nu40_image_hash": "bd6e555d5a542d0a3efae2c61b95230794d838cb09d64e26188957a0a233e58a",
+  "expected_nu40_upload_sha256": "ee309964f3bf2caf6700d77b1a22d826d36bf63b930c5f31fefa3fea9a0336b1",
+  "signature_verified_by_build": true,
+  "source_checks": {
+    "host_python_tests": 151,
+    "javascript_tests": 59,
+    "nu40_owner_and_mirror_tests_each": 10,
+    "native_sanitizers": [
+      "ASan",
+      "UBSan"
+    ],
+    "target_gateway_tests": 29
+  },
+  "settings": {
+    "graphics_min_send_interval_ms_before": 1200,
+    "graphics_min_send_interval_ms_after": 300,
+    "nu40_raster_wait_ms_before": 120,
+    "nu40_raster_wait_ms_after": 60,
+    "nu40_measured_pose_blend_ms": 160,
+    "host_presentation_tau_seconds": {
+      "minimum": 0.035,
+      "maximum": 0.16,
+      "adaptive": true
+    },
+    "browser_presentation_tau_ms_before": 160,
+    "browser_presentation_tau_ms_after": 80,
+    "host_freshness_ms_unchanged": 1500,
+    "nu40_sample_expiry_ms_unchanged": 3000,
+    "ble_completed_supervision_ms_unchanged": 4000,
+    "host_connection_reuse_budget_ms_before": 400,
+    "host_connection_reuse_budget_ms_after": 650,
+    "nu87_http_idle_timeout_ms_unchanged": 750
+  },
+  "baseline_five_minutes": {
+    "summary": {
+      "started_at": 1791700607.4027276,
+      "seconds": 301.9621679959819,
+      "wall_seconds": 301.9621720314026,
+      "max_clock_difference_s": 0.009410061000380665,
+      "snapshots": 1500,
+      "stale_snapshots": 16,
+      "input_updates": 996,
+      "input_gap_max_s": 2.599937293038238,
+      "input_gap_p95_s": 0.6001647940138355,
+      "oled_acks": 234,
+      "oled_gap_max_s": 3.399949992017355,
+      "oled_gap_p95_s": 1.6002275220234878,
+      "oled_error_snapshots": 0,
+      "capture_errors": 0,
+      "sensor_errors_max": 0,
+      "uptime_regressions": 0,
+      "boundary": "Actual NU87 I2C and matching OLED driver ACKs; physical pixels unobserved; 200ms quantization; two scan probes plus error-triggered probes."
+    },
+    "oled_ack_gap_median_s_exact": 1.2589101791381836,
+    "measurement_source": "nu40-022-supervision-live.json"
+  },
+  "hardware_update_status": "active_confirmed",
+  "physical_observation_after_update": {
+    "response_received": false,
+    "scope": "Optional operator inversion/response check is pending; no camera or physical latency claim."
+  },
+  "limitations": [
+    "Transport ACK is not a camera view or physical latency measurement.",
+    "Gravity attitude has no absolute yaw/position.",
+    "Large acceleration invalidates the gravity-only estimate; it never permits virtual movement.",
+    "A 300 ms minimum schedule does not guarantee that radio frame rate.",
+    "The final run observed no inverted samples; the new physical 180 degree check remains unverified.",
+    "The final run still exceeded the unchanged Host freshness threshold in 12 of 600 snapshots."
+  ],
+  "test_boot": {
+    "at": 1791702363.7026978,
+    "metadata": {
+      "size": 239522,
+      "version": "0.2.3+0",
+      "image_hash": "bd6e555d5a542d0a3efae2c61b95230794d838cb09d64e26188957a0a233e58a",
+      "upload_sha256": "ee309964f3bf2caf6700d77b1a22d826d36bf63b930c5f31fefa3fea9a0336b1",
+      "signature_present": true,
+      "signature_verified": false,
+      "verification": "layout-and-image-sha256; MCUboot verifies the signing key on the device"
+    },
+    "before": {
+      "images": [
+        {
+          "slot": 0,
+          "version": "0.2.2",
+          "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+          "bootable": true,
+          "pending": false,
+          "confirmed": true,
+          "active": true,
+          "permanent": false
+        },
+        {
+          "slot": 1,
+          "version": "0.2.3",
+          "hash": "bd6e555d5a542d0a3efae2c61b95230794d838cb09d64e26188957a0a233e58a",
+          "bootable": true,
+          "pending": false,
+          "confirmed": false,
+          "active": false,
+          "permanent": false
+        }
+      ],
+      "splitStatus": 0
+    },
+    "test": {
+      "images": [
+        {
+          "slot": 0,
+          "version": "0.2.2",
+          "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+          "bootable": true,
+          "pending": false,
+          "confirmed": true,
+          "active": true,
+          "permanent": false
+        },
+        {
+          "slot": 1,
+          "version": "0.2.3",
+          "hash": "bd6e555d5a542d0a3efae2c61b95230794d838cb09d64e26188957a0a233e58a",
+          "bootable": true,
+          "pending": true,
+          "confirmed": false,
+          "active": false,
+          "permanent": false
+        }
+      ],
+      "splitStatus": 0
+    },
+    "reset": {}
+  },
+  "test_boot_app_check": {
+    "checked_at": 1791702395.7934904,
+    "images": {
+      "images": [
+        {
+          "slot": 0,
+          "version": "0.2.3",
+          "hash": "bd6e555d5a542d0a3efae2c61b95230794d838cb09d64e26188957a0a233e58a",
+          "bootable": true,
+          "pending": false,
+          "confirmed": false,
+          "active": true,
+          "permanent": false
+        },
+        {
+          "slot": 1,
+          "version": "0.2.2",
+          "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+          "bootable": true,
+          "pending": false,
+          "confirmed": true,
+          "active": false,
+          "permanent": false
+        }
+      ],
+      "splitStatus": 0
+    },
+    "physical_imu_sample": 161070,
+    "physical_imu_errors": 0,
+    "oled_driver_ack": true,
+    "alarm_clear_ack": true,
+    "audio_transport": {
+      "received": 3,
+      "dropped": 0,
+      "frames_decoded": 3,
+      "sequences": [
+        0,
+        1,
+        2
+      ],
+      "max_abs_pcm": 0,
+      "scope": "Armed transport/keepalive only; no physical BTN2/BTN3 or acoustic capture claim."
+    },
+    "confirmation_sent": false
+  },
+  "explicit_confirmation": {
+    "at": 1791702713.040089,
+    "result": {
+      "images": [
+        {
+          "slot": 0,
+          "version": "0.2.3",
+          "hash": "bd6e555d5a542d0a3efae2c61b95230794d838cb09d64e26188957a0a233e58a",
+          "bootable": true,
+          "pending": false,
+          "confirmed": true,
+          "active": true,
+          "permanent": false
+        },
+        {
+          "slot": 1,
+          "version": "0.2.2",
+          "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+          "bootable": true,
+          "pending": false,
+          "confirmed": false,
+          "active": false,
+          "permanent": false
+        }
+      ],
+      "splitStatus": 0
+    },
+    "evidence": "OLED, alarm clear and armed audio transport checks completed before confirmation."
+  },
+  "first_responsive_run": {
+    "summary": {
+      "started_at": 1791702426.1699605,
+      "seconds": 180.71436225099023,
+      "wall_seconds": 180.714364528656,
+      "max_clock_difference_s": 0.022775198565796018,
+      "snapshots": 900,
+      "stale_snapshots": 5,
+      "input_updates": 310,
+      "input_gap_max_s": 1.6001240559853613,
+      "input_gap_p95_s": 0.9999953689984977,
+      "oled_acks": 310,
+      "oled_gap_max_s": 2.4000337939942256,
+      "oled_gap_p95_s": 1.0000328260357492,
+      "oled_error_snapshots": 0,
+      "capture_errors": 0,
+      "sensor_errors_max": 0,
+      "uptime_regressions": 0,
+      "boundary": "Actual NU87 I2C and matching OLED driver ACKs; physical pixels unobserved; 200ms quantization; two scan probes plus error-triggered probes.",
+      "oled_ack_gap_median_s_exact": 0.5332026481628418,
+      "oled_ack_gap_p95_s_exact": 1.0332114696502686,
+      "oled_gap_median_s": 0.5999193970346823,
+      "input_gap_median_s": 0.5999155619647354,
+      "request_median_ms": 399.9813659465872,
+      "request_p95_ms": 701.4550589956343,
+      "source_age_median_ms": 24.475574493408203,
+      "gravity_invalid_snapshots": 0,
+      "scene_states": {
+        "null": 10,
+        "R": 877,
+        "X": 13
+      },
+      "inverted_snapshots": 0
+    },
+    "diagnostics": [
+      {
+        "elapsed_s": 0.9973630270105787,
+        "label": "start",
+        "link": {
+          "connections": 3,
+          "disconnects": 2,
+          "commands": 913,
+          "failures": 1,
+          "lastFailure": -128,
+          "failureAtMs": 1250641,
+          "attError": 0,
+          "enqueueError": -128,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": 8,
+          "disconnectAtMs": 1945078,
+          "paramRequests": 3,
+          "shortTimeoutRequests": 3,
+          "requestedTimeout": 42,
+          "paramUpdates": 3,
+          "paramsKnown": true,
+          "params": [
+            36,
+            0,
+            400
+          ],
+          "minTimeout": 400
+        }
+      },
+      {
+        "elapsed_s": 180.7136465900112,
+        "label": "end",
+        "link": {
+          "connections": 3,
+          "disconnects": 2,
+          "commands": 1223,
+          "failures": 1,
+          "lastFailure": -128,
+          "failureAtMs": 1250641,
+          "attError": 0,
+          "enqueueError": -128,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": 8,
+          "disconnectAtMs": 1945078,
+          "paramRequests": 3,
+          "shortTimeoutRequests": 3,
+          "requestedTimeout": 42,
+          "paramUpdates": 3,
+          "paramsKnown": true,
+          "params": [
+            36,
+            0,
+            400
+          ],
+          "minTimeout": 400
+        }
+      }
+    ]
+  },
+  "browser_check": {
+    "passed": true,
+    "real_http_source": "nu87-i2c",
+    "observed_sequences": [
+      164145,
+      164145,
+      164220,
+      164220,
+      164220,
+      164288,
+      164319,
+      164344
+    ],
+    "oled_driver_ack_visible": true,
+    "browser_errors": [],
+    "checked_at": "2026-10-11T07:07:12.667Z",
+    "scope": "Read-only live browser check. OLED pixels and physical movement require separate observation."
+  },
+  "upload_attempts": [
+    {
+      "attempt": 1,
+      "result": "HTTP 422; unchanged active confirmed 0.2.2 verified afterward"
+    },
+    {
+      "attempt": 2,
+      "result": "Wi-Fi request failed at 84 percent; same BLE connection and original active app verified afterward"
+    },
+    {
+      "attempt": 3,
+      "result": "Same signed file resumed by its SHA256; full image listed in inactive slot before test boot"
+    }
+  ],
+  "final_responsive_run": {
+    "summary": {
+      "started_at": 1791702813.095681,
+      "seconds": 120.63247293501627,
+      "wall_seconds": 120.63247442245483,
+      "max_clock_difference_s": 0.006797807291150093,
+      "snapshots": 600,
+      "stale_snapshots": 12,
+      "input_updates": 214,
+      "input_gap_max_s": 2.2000441750278696,
+      "input_gap_p95_s": 0.9999969439813867,
+      "oled_acks": 212,
+      "oled_gap_max_s": 1.966102224017959,
+      "oled_gap_p95_s": 0.9999916119850241,
+      "oled_error_snapshots": 0,
+      "capture_errors": 0,
+      "sensor_errors_max": 0,
+      "uptime_regressions": 0,
+      "boundary": "Actual NU87 I2C and matching OLED driver ACKs; physical pixels unobserved; 200ms quantization; two scan probes plus error-triggered probes.",
+      "oled_ack_gap_median_s_exact": 0.4960770606994629,
+      "oled_ack_gap_p95_s_exact": 1.034555435180664,
+      "oled_gap_median_s": 0.5998107450432144,
+      "input_gap_median_s": 0.4001474580145441,
+      "request_median_ms": 379.1456460021436,
+      "request_p95_ms": 773.2951380312443,
+      "source_age_median_ms": 19.61493492126465,
+      "gravity_invalid_snapshots": 0,
+      "scene_states": {
+        "null": 13,
+        "R": 574,
+        "X": 13
+      },
+      "inverted_snapshots": 0
+    },
+    "diagnostics": [
+      {
+        "elapsed_s": 0.6339469189988449,
+        "label": "start",
+        "link": {
+          "connections": 3,
+          "disconnects": 2,
+          "commands": 1593,
+          "failures": 1,
+          "lastFailure": -128,
+          "failureAtMs": 1250641,
+          "attError": 0,
+          "enqueueError": -128,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": 8,
+          "disconnectAtMs": 1945078,
+          "paramRequests": 3,
+          "shortTimeoutRequests": 3,
+          "requestedTimeout": 42,
+          "paramUpdates": 3,
+          "paramsKnown": true,
+          "params": [
+            36,
+            0,
+            400
+          ],
+          "minTimeout": 400
+        }
+      },
+      {
+        "elapsed_s": 120.63197091099573,
+        "label": "end",
+        "link": {
+          "connections": 3,
+          "disconnects": 2,
+          "commands": 1804,
+          "failures": 1,
+          "lastFailure": -128,
+          "failureAtMs": 1250641,
+          "attError": 0,
+          "enqueueError": -128,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": 8,
+          "disconnectAtMs": 1945078,
+          "paramRequests": 3,
+          "shortTimeoutRequests": 3,
+          "requestedTimeout": 42,
+          "paramUpdates": 3,
+          "paramsKnown": true,
+          "params": [
+            36,
+            0,
+            400
+          ],
+          "minTimeout": 400
+        }
+      }
+    ]
+  },
+  "observed_ack_cadence_ratio": 2.537731088317478,
+  "interpretation": "Observed median driver-ACK gap improved from 1.259 s to 0.496 s across these short runs. Final run had no new BLE disconnects or output errors, but 12/600 stale Host snapshots and 2.20 s maximum input gap. Different short radio windows do not isolate the effect of connection reuse or verify physical end-to-end latency."
+}

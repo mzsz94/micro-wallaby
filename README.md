@@ -2,6 +2,10 @@
 
 ## Military Wallaby · 밀리터리 왈라비
 
+**[OLED 응답 개선 0.2.3 · 실측 결과](docs/demo/RESPONSIVE-GRAPHICS.md)** —
+BLE OTA 설치·확정 후 관측한 ACK 간격 중앙값 1.26초 → 0.50초.
+±180° 보간과 `ATT MOVING` 표시를 추가했으며 실제 Wi-Fi 입력 지연은 별도로 남깁니다.
+
 **[실제 NU87 IMU → NU40 OLED 데모](docs/demo/LIVE-IMU.md)** — 실제 센서를 기울여
 자세 표시 → 기울기 경고·가상 정지 → 복귀·해제까지 확인했습니다.
 [실측 GIF](docs/demo/media/07-live-imu.gif) · [MP4](docs/demo/media/military-wallaby-live-imu.mp4).
@@ -10,7 +14,7 @@
 
 **[BLE OTA 0.2.2 적용 후 OLED·가상 주행 영상](docs/demo/OLED-GRAPHICS.md)** —
 무선 업로드·확정·소프트웨어 리셋 뒤 실제 IMU와 OLED ACK로 검증했습니다.
-[최신 GIF](docs/demo/media/09-ota-oled-022.gif) ·
+[0.2.2 검증 GIF](docs/demo/media/09-ota-oled-022.gif) ·
 [MP4](docs/demo/media/military-wallaby-ota-022.mp4).
 
 **[상황별 데모 GIF·MP4 보기](docs/demo/README.md)** — 교범 조회, 상황 보고, 지시 정리,
@@ -38,7 +42,7 @@ llama.cpp → NU87 Wi-Fi → NU40 BLE 표시 ACK를 별도로 확인했습니다
 먼저 HostPC의 NU87 연결을 설정하고 웹에서 `NU 40DK · BTN2 녹음 / BTN3 전송`을 선택해
 `버튼 입력 준비`를 누르세요. 수신 화면을 열어 둔 상태로 보드 버튼을 사용합니다.
 버튼 입력과 녹음은 NU40에서 처리하며 기존 NU87 BLE 음성 프로토콜을 사용합니다.
-통합 NU40 펌웨어 `0.2.2`는 얼굴·수평계 그래픽과 녹음 상태를 함께 표시하고,
+통합 NU40 펌웨어 `0.2.3`은 얼굴·수평계 그래픽과 녹음 상태를 함께 표시하고,
 경고와 측정 끊김을 우선 표시합니다. 저장된 BLE 구독의 재연결 문제도 수정했습니다.
 
 ```sh

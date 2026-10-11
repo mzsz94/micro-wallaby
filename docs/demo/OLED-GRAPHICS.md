@@ -1,5 +1,8 @@
 # 실측 IMU → OLED 그래픽 → 주행 시뮬레이션
 
+현재 설치한 응답 개선판은 **[0.2.3 실측 보고서](RESPONSIVE-GRAPHICS.md)**입니다.
+아래 GIF·영상은 0.2.2 당시의 기록입니다.
+
 **[OTA 0.2.2 적용 후 GIF](media/09-ota-oled-022.gif) ·
 [MP4](media/military-wallaby-ota-022.mp4) ·
 [OTA·재연결·브라우저 검증 기록](ota-oled-022-evidence.json)**

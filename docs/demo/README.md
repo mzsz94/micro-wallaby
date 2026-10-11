@@ -182,3 +182,6 @@ WALLABY_PLAYWRIGHT_MODULE="$PWD/build/demo-recorder/node_modules/playwright/inde
 
 별도로 수행한 [NU87 Wi-Fi · NU40 BLE 실기 확인](HARDWARE-CHECK.md)은 영상의
 시뮬레이션 범위와 구분해 기록했습니다.
+
+[NU40 0.2.3 응답 개선·실측 비교](RESPONSIVE-GRAPHICS.md) — 무선 OTA 설치와
+ACK 간격 1.26초 → 0.50초를 확인했다. 기존 GIF의 펌웨어 버전은 그대로 명시한다.
