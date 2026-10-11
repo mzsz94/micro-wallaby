@@ -33,6 +33,13 @@ existing configuration helper preserves the API token when reconfiguring Wi-Fi.
 bash firmware/nu87_lcd_gateway/build.sh
 ```
 
+For physical IMU acquisition on PA26 (SDA) / PA25 (SCL), use
+`bash firmware/nu87_lcd_gateway/build.sh --imu`. This reuses the sensor bring-up
+driver and I2C repeated-START patch and adds authenticated `GET /v1/imu/status`.
+Run the Host PC application with `--live-imu` to use this source; see the
+[real hardware demo](../../docs/demo/LIVE-IMU.md). The option is off in regular
+gateway builds and does not alter the existing Wi-Fi / BLE protocols.
+
 `program.conf` includes the Realtek radio images. Omitting it can produce an
 image that builds but cannot initialize the radio. The pinned workspace also
 includes the HAL fixes needed by this application; an unrelated global Zephyr

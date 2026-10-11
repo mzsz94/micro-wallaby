@@ -487,3 +487,19 @@ updateVoices(); updateControls(); refreshStatus(); refreshRecords(); pollBoard()
 setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
 setInterval(pollBoard, 1000);
 setInterval(pollAlerts, 1000);
+let imuPending = false, imuWasBlocked = false;
+async function pollLiveImu() {
+  if (imuPending || document.hidden || status?.imu?.enabled !== true) return;
+  imuPending = true;
+  try {
+    const state = await api('/api/imu/status');
+    $('simulator').contentWindow?.postMessage({ type: 'wallaby-imu', state }, location.origin);
+    if (state.motion_blocked && !imuWasBlocked) {
+      postMotion('stop');
+      notice('실측 IMU 기울기 경고 또는 수신 끊김으로 가상 이동을 정지했습니다.', true);
+    }
+    imuWasBlocked = state.motion_blocked;
+  } catch { postMotion('stop'); }
+  finally { imuPending = false; }
+}
+setInterval(pollLiveImu, 300);

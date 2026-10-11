@@ -15,6 +15,7 @@ from .audio import LocalTranscriber
 from .engine import Engine, is_immediate_command
 from .gateway import Gateway, summarize_result
 from .device_audio import DeviceAudio
+from .live_imu import LiveImu
 
 ROOT = Path(__file__).resolve().parent
 MODES = {"auto", "query", "report", "orders", "search"}
@@ -27,7 +28,7 @@ class RequestError(Exception):
 
 
 class VoiceApp:
-    def __init__(self, engine, transcriber, gateway, *, auto_display=False):
+    def __init__(self, engine, transcriber, gateway, *, auto_display=False, live_imu=False):
         self.engine = engine
         self.transcriber = transcriber
         self.gateway = gateway
@@ -45,6 +46,7 @@ class VoiceApp:
         self._alarm_device = {"available": False, "acknowledged": False}
         self._command_generation = 0
         self._command_lock = threading.Lock()
+        self.live_imu = LiveImu(gateway, engine, enabled=live_imu)
 
     @property
     def alert_active(self):
@@ -168,6 +170,7 @@ class VoiceApp:
             "llm": engine.get("llm", {"enabled": engine.get("llm_configured", False)}),
             "gateway": self.gateway.status(),
             "alert_active": self.alert_active,
+            "imu": self.live_imu.snapshot(),
             "capabilities": {
                 "inference": "host-pc-local", "microphone": "nu40-pdm",
                 "motion": "simulation", "nu40_microphone_stream": True,
@@ -197,6 +200,9 @@ class VoiceApp:
             if not isinstance(text, str) or not text.strip() or len(text) > 8000:
                 raise RequestError(400, "발화는 1~8000자의 문자열이어야 합니다.")
             result = self.engine.process(text, mode=mode)
+            if self.live_imu.snapshot()["motion_blocked"] and result.get("motion") not in (None, "stop"):
+                result["motion"] = "stop"
+                result["answer"] = "실측 IMU 기울기 경고 또는 데이터 끊김으로 가상 이동을 정지합니다."
             if result.get("kind") == "alert":
                 result = self._apply_alert(result)
             if self.alert_active and result.get("motion") not in (None, "stop"):
@@ -206,7 +212,7 @@ class VoiceApp:
                 with self._command_lock:
                     with self._alert_lock:
                         cancelled = command_generation != self._command_generation
-                    if cancelled or (self.alert_active and result["motion"] != "stop"):
+                    if cancelled or ((self.alert_active or self.live_imu.snapshot()["motion_blocked"]) and result["motion"] != "stop"):
                         result["motion"] = "stop"
                         result["motion_cancelled"] = True
                     # Patrol is a browser-only route. The deployed gateway's
@@ -224,10 +230,15 @@ class VoiceApp:
             # in flight. Re-check immediately before handing motion to the UI.
             if self.alert_active and result.get("motion") not in (None, "stop"):
                 result["motion"] = "stop"
+            if self.live_imu.snapshot()["motion_blocked"] and result.get("motion") not in (None, "stop"):
+                result["motion"] = "stop"
             result["alert_active"] = self.alert_active
             if self.auto_display and result.get("kind") != "alert":
                 # Display failure must not discard the local report or block motion forever.
-                result["device"] = self.gateway.display(summarize_result(result))
+                summary = summarize_result(result)
+                result["device"] = self.gateway.display(summary)
+                if self.live_imu.enabled:
+                    self.live_imu.hold_display(summary, result["device"])
             return result
         finally:
             if owns_turn:
@@ -305,6 +316,8 @@ class VoiceHandler(BaseHTTPRequestHandler):
         if method == "GET":
             if path == "/api/status":
                 return self._send(200, self.app.status())
+            if path == "/api/imu/status":
+                return self._send(200, self.app.live_imu.snapshot())
             if path == "/api/device-audio/status":
                 lease = query.get("generation", [""])[0]
                 if lease and (not lease.isascii() or not lease.isdecimal() or len(lease) > 20):
@@ -333,6 +346,15 @@ class VoiceHandler(BaseHTTPRequestHandler):
         if path == "/api/turn":
             body = self._json_body()
             return self._send(200, self.app.turn(text=body.get("text"), mode=body.get("mode", "auto")))
+        if path in {"/api/imu/reference", "/api/imu/clear", "/api/imu/display"}:
+            body = self._json_body()
+            if path.endswith("reference"):
+                result = self.app.live_imu.calibrate()
+            elif path.endswith("clear"):
+                result = self.app.live_imu.clear()
+            else:
+                result = self.app.live_imu.set_display(body.get("enabled"))
+            return self._send(200, result)
         if path == "/api/control/stop":
             self._json_body()
             return self._send(200, self.app.stop_motion())
@@ -350,7 +372,10 @@ class VoiceHandler(BaseHTTPRequestHandler):
             text = body.get("text")
             if not isinstance(text, str):
                 raise RequestError(400, "화면 문자열이 필요합니다.")
-            return self._send(200, self.app.gateway.display(text))
+            result = self.app.gateway.display(text)
+            if self.app.live_imu.enabled:
+                self.app.live_imu.hold_display(text, result)
+            return self._send(200, result)
         if path == "/api/gateway/peer":
             body = self._json_body()
             return self._send(200, self.app.gateway.select_peer(body.get("address"), body.get("type")))
@@ -417,6 +442,7 @@ def main():
     parser.add_argument("--gateway", help="NU87 private IPv4 address[:port]")
     parser.add_argument("--gateway-config", type=Path, help="Private local.conf; token is never sent to the browser")
     parser.add_argument("--auto-display", action="store_true", help="Send ASCII processing summaries to the selected NU40")
+    parser.add_argument("--live-imu", action="store_true", help="Poll the real NU87 I2C endpoint and relay measured attitude to NU40")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("port must be between 1 and 65535")
@@ -427,8 +453,10 @@ def main():
             LocalTranscriber(args.stt_model),
             Gateway(host=args.gateway, config_path=args.gateway_config),
             auto_display=args.auto_display,
+            live_imu=args.live_imu,
         )
         server = create_server(app, args.port)
+        app.live_imu.start()
     except (OSError, ValueError) as error:
         parser.exit(1, f"서버를 시작할 수 없습니다: {error}\n")
     url = f"http://127.0.0.1:{args.port}/"
@@ -440,6 +468,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        app.live_imu.stop.set()
         if app.device_audio.status(touch=False)["running"]:
             app.device_audio.stop()
         server.server_close()

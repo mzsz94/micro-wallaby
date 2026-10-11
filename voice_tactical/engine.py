@@ -430,6 +430,17 @@ class Engine:
         return self.process("왈라비 폭발물 감지" if active else "왈라비 경고 해제",
                             event_source=source, event_counter=counter)
 
+    def record_sensor_event(self, event: dict) -> dict:
+        """Persist a physical measurement as an event, never a fabricated utterance."""
+        result = {"id": uuid.uuid4().hex, "timestamp": datetime.now(timezone.utc).isoformat(),
+                  "kind": "sensor", "transcript": "NU87 I2C 실측 이벤트", "answer": event["message"],
+                  "event_source": "nu87-i2c", "sensor_event": event, "motion": None}
+        with self._lock, self._connect() as db:
+            db.execute("INSERT INTO records VALUES (?, ?, ?, ?, ?, ?)",
+                       (result["id"], result["timestamp"], "sensor", result["transcript"],
+                        result["answer"], json.dumps(result, ensure_ascii=False)))
+        return result
+
     def process(self, text: str, mode: str = "auto", *, event_source="voice-or-text", event_counter=None) -> dict[str, Any]:
         if not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT:
             raise ValueError(f"발화는 1~{MAX_TEXT}자여야 합니다.")

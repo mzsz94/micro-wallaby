@@ -3,9 +3,11 @@ import { createVoiceController, isParentMessage } from './voice-control.mjs';
 import { arenaLayout } from './render-layout.mjs';
 import { createDemoController } from './demo-control.mjs';
 import { drawDemoArena, drawDemoRobot } from './demo-render.mjs';
+import { createLiveImuControl } from './live-imu-control.mjs';
 
 const $ = (id) => document.getElementById(id);
 const sim = new Simulator();
+const liveImu = createLiveImuControl(sim);
 let paused = false;
 let accumulator = 0;
 let previousTime;
@@ -23,7 +25,7 @@ alertBanner.textContent = '⚠ 폭발물 감지 훈련 경고 · 왈라비 정�
 alertBanner.hidden = true;
 document.body.prepend(alertBanner);
 const voice = createVoiceController(sim, {
-  canRun: () => !paused && !document.hidden,
+  canRun: () => !paused && !document.hidden && !liveImu.blocked,
   onResult: result => {
     record('voice', result);
     if (!result.accepted) feedback('현재 시뮬레이션 상태에서 음성 동작을 실행할 수 없습니다.');
@@ -35,6 +37,8 @@ if (embedded) {
     if (!isParentMessage(event, window.parent, location.origin)) return;
     if (event.data.type === 'wallaby-alert' && typeof event.data.active === 'boolean') {
       setVoiceAlert(event.data.active);
+    } else if (event.data.type === 'wallaby-imu') {
+      liveImu.update(event.data.state);
     } else if (event.data.type === 'wallaby-voice-hello') {
       window.parent.postMessage({ type: 'wallaby-voice-ready' }, location.origin);
     } else if (event.data.type === 'wallaby-voice-heartbeat') voice.heartbeat();
@@ -84,6 +88,7 @@ function record(action, value) {
 }
 
 function invoke(action) {
+  if (liveImu.blocked && action !== 'stop') return feedback('실측 IMU 경고 또는 수신 끊김을 먼저 확인하세요.');
   if (voice.alertActive && action !== 'stop') return feedback('폭발물 감지 훈련 경고를 먼저 해제하세요.');
   voice.interrupt('manual override');
   release();
@@ -160,7 +165,7 @@ $('battery').addEventListener('input', () => {
 });
 
 function updateManual() {
-  if (voice.alertActive) { held.clear(); sim.command('stop'); return; }
+  if (voice.alertActive || liveImu.blocked) { held.clear(); sim.command('stop'); return; }
   const linear = (Number(held.has('forward')) - Number(held.has('backward'))) * .12;
   const angular = (Number(held.has('left')) - Number(held.has('right'))) * 1.0;
   const accepted = sim.setManual(linear, angular);
@@ -240,9 +245,10 @@ $('export').addEventListener('click', () => {
 });
 
 function refresh(s) {
+  liveImu.tick();
   const patrol = voice.patrolState;
   $('time').textContent = s.time.toFixed(2);
-  $('state').textContent = patrol ? 'TRAINING_SEARCH' : s.state;
+  $('state').textContent = liveImu.blocked ? 'IMU_HOLD' : patrol ? 'TRAINING_SEARCH' : s.state;
   $('state').classList.toggle('fault', ['FAULT', 'DOCK_FAILED'].includes(s.state));
   $('reason').textContent = patrol ? `훈련 구역 탐색 · 지점 ${patrol.index + 1}/4 · 가상 경로 순회 / 최대 60초` : `${stateLabels[s.state] || ''} · ${s.reason || '명령 대기'}`;
   for (const [id, value, unit, places] of [
@@ -394,6 +400,7 @@ function robot(s) {
 }
 
 function frame(now) {
+  liveImu.tick();
   voice.tick();
   demo?.tick();
   if (previousTime !== undefined && !paused && !document.hidden) {

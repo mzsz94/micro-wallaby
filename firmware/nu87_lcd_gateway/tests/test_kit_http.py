@@ -33,6 +33,8 @@ static int smp_calls, smp_error;
 static int alarm_calls, alarm_error;
 static bool alarm_active;
 static int robot_calls;
+static int imu_error, imu_calls;
+int gateway_imu_status(char *s,size_t n) { imu_calls++;return imu_error ? (int)n : snprintf(s,n,"{\"configured\":true,\"source\":\"nu87-i2c\",\"sample\":42}"); }
 int gateway_robot_command(const char *command) { robot_calls++;return !strcmp(command,"stop")?0:-EPERM; }
 int gateway_robot_status(char *s,size_t n,bool accepted) { return snprintf(s,n,"{\"accepted\":%s,\"command\":\"stop\",\"simulated\":true}",accepted?"true":"false"); }
 int gateway_alarm_status(char *s,size_t n) { return snprintf(s,n,"{\"available\":true,\"active\":null,\"acknowledged\":false}"); }
@@ -79,6 +81,11 @@ static void expect(int code) { char wanted[32];snprintf(wanted,sizeof(wanted),"H
 int main(void) {
  char full[85];memset(full,'A',sizeof(full));
  const char smp[] = {2,0,0,1,0,1,10,1,0xa0};
+ request("GET","/v1/imu/status","",0,true);expect(200);assert(imu_calls==1&&strstr(output,"\"sample\":42"));
+ request("GET","/v1/imu/status","",0,false);expect(401);assert(imu_calls==1);
+ request("GET","/v1/imu/status","x",1,true);expect(400);assert(imu_calls==1);
+ request("POST","/v1/imu/status","",0,true);expect(422);assert(imu_calls==1);
+ imu_error=1;request("GET","/v1/imu/status","",0,true);expect(503);imu_error=0;
  request("GET","/v1/robot/status","",0,true);expect(200);
  request("POST","/v1/robot/command","stop",4,true);expect(200);assert(robot_calls==1);
  request("POST","/v1/robot/command","forward",7,true);expect(422);assert(robot_calls==2);

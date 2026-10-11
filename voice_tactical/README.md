@@ -1,5 +1,8 @@
 # Military Wallaby · 밀리터리 왈라비
 
+**[실측 IMU·NU40 OLED 데모](../docs/demo/LIVE-IMU.md)**는 `--live-imu` 옵션으로 실행합니다.
+`http://127.0.0.1:8767/hardware.html`에서 실제 센서 자세·경고·복귀·OLED ACK를 확인합니다.
+
 microWallaby의 `test/military-wallaby` 미니 프로젝트입니다. 주제는 **Voice-first
 Tactical AI**입니다. **NU40DK는 컨트롤 타워**, **NU87 Tiny는 왈라비**,
 **HostPC는 클라우드 서버 역할을 대신하는 로컬 AI 서버**입니다. NU40DK의 PDM 마이크로

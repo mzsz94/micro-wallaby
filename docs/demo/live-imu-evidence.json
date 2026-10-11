@@ -1,0 +1,608 @@
+{
+  "schema": "military-wallaby-real-hardware-recording/v1",
+  "recorded_at": "2026-10-10T23:51:05.590Z",
+  "hardware_source": "NU87 I2C LSM6DS3TR-C via authenticated LAN HTTP",
+  "real_time_recording": true,
+  "generated_sensor_samples": false,
+  "staged_speech": false,
+  "browser_errors": [],
+  "sample_sequence_advanced": true,
+  "sensor_errors": 0,
+  "observed_tilt_range_degrees": [
+    0.04196080289280353,
+    46.50179059510269
+  ],
+  "physical_tilt_warning_observed": true,
+  "oled_driver_ack_observed": true,
+  "oled_pixels_verified": false,
+  "return_and_clear_observed": true,
+  "virtual_patrol_requested": true,
+  "limitations": "IMU attitude is real; Wallaby movement is a virtual model. No absolute yaw/location or real motor validation. OLED ACK does not verify visible pixels.",
+  "persisted_sequence_verification": [
+    {
+      "id": "8f1906c988c6423fab3d71f5b184359f",
+      "timestamp": "2026-10-10T23:49:31.790348+00:00",
+      "kind": "sensor",
+      "transcript": "NU87 I2C 실측 이벤트",
+      "answer": "실측 중력으로 기준 자세 설정 · 기울기 감시 시작",
+      "event_source": "nu87-i2c",
+      "sensor_event": {
+        "kind": "reference",
+        "message": "실측 중력으로 기준 자세 설정 · 기울기 감시 시작",
+        "at": 1791676171.7901812,
+        "measurement": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 25708,
+          "ageMs": 14,
+          "uptimeMs": 315597,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            27,
+            5,
+            1049
+          ],
+          "gyroMdps": [
+            980,
+            -4103,
+            -1417
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.273095069677015,
+          "pitch": -1.4743822714836277,
+          "tilt": 1.499455746876353,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          0.02589484305967636,
+          0.005004218137299419,
+          0.9996521469510028
+        ]
+      },
+      "motion": null
+    },
+    {
+      "id": "4bbfd019e3a84c9fa2d600462c5ad53b",
+      "timestamp": "2026-10-10T23:51:01.482529+00:00",
+      "kind": "sensor",
+      "transcript": "NU87 I2C 실측 이벤트",
+      "answer": "실측 기울기 35° 이상 지속 · 가상 왈라비 정지",
+      "event_source": "nu87-i2c",
+      "sensor_event": {
+        "kind": "tilt",
+        "message": "실측 기울기 35° 이상 지속 · 가상 왈라비 정지",
+        "at": 1791676261.4824405,
+        "measurement": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 32977,
+          "ageMs": 9,
+          "uptimeMs": 405286,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            508,
+            -458,
+            654
+          ],
+          "gyroMdps": [
+            30712,
+            25847,
+            25585
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": -35.00377800252107,
+          "pitch": -32.466715277042795,
+          "tilt": 45.38593875202274,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          0.02589484305967636,
+          0.005004218137299419,
+          0.9996521469510028
+        ]
+      },
+      "motion": null
+    },
+    {
+      "id": "dc8c6f0e1bda4d6582a3a10ad9132d27",
+      "timestamp": "2026-10-10T23:51:03.086647+00:00",
+      "kind": "sensor",
+      "transcript": "NU87 I2C 실측 이벤트",
+      "answer": "실측 자세 복귀 확인 · 기울기 경고 해제",
+      "event_source": "nu87-i2c",
+      "sensor_event": {
+        "kind": "clear",
+        "message": "실측 자세 복귀 확인 · 기울기 경고 해제",
+        "at": 1791676263.0865755,
+        "measurement": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 33093,
+          "ageMs": 15,
+          "uptimeMs": 406715,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            -1,
+            6,
+            1049
+          ],
+          "gyroMdps": [
+            883,
+            -3937,
+            -1435
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.3277129916582661,
+          "pitch": 0.05461851759320205,
+          "tilt": 1.5389929186997358,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          0.02589484305967636,
+          0.005004218137299419,
+          0.9996521469510028
+        ]
+      },
+      "motion": null
+    }
+  ],
+  "return_and_clear_verification": "Persisted SQLite clear event at sample 33093, after tilt event 32977, during the real recording.",
+  "human_observation": {
+    "source": "user report in this session",
+    "oled_values_changed": true,
+    "report": "바뀌는데 감도가 좀 더 부드러웠으면 좋겠어"
+  },
+  "presentation_filter": "The recording predates the requested host/browser display smoothing. Raw capture and warning decisions are preserved.",
+  "published_clip": {
+    "source": "original wall-clock browser recording",
+    "source_start_seconds": 40,
+    "speed": 1,
+    "waiting_time_removed": true,
+    "sensor_values_edited": false
+  },
+  "smoothed_live_verification": {
+    "passed": true,
+    "real_http_source": "nu87-i2c",
+    "observed_sequences": [
+      104850,
+      104850,
+      104923,
+      104949,
+      104949,
+      104949,
+      105023,
+      105048
+    ],
+    "oled_driver_ack_visible": true,
+    "browser_errors": [],
+    "checked_at": "2026-10-11T00:05:51.102Z",
+    "scope": "Read-only live browser check. OLED pixels and physical movement require separate observation."
+  },
+  "published_media": [
+    {
+      "file": "military-wallaby-live-imu.mp4",
+      "seconds": 10.64,
+      "bytes": 237968,
+      "sha256": "c3ed6724d38fef9c30c07adc0e8b7633f1dbb51824281615b6fb73dbb8f1fca0"
+    },
+    {
+      "file": "07-live-imu.gif",
+      "seconds": 10.62,
+      "bytes": 765773,
+      "sha256": "146cfefa583b3d9bc485ce0ed1caf40146301c90737b70e98bd890cebde04c54"
+    }
+  ],
+  "capture_summary": {
+    "total_observations": 204,
+    "distinct_sequences": 62,
+    "observed_duration_ms": 46206,
+    "full_continuous_capture": "build/live-imu-recording/live-imu-evidence.json"
+  },
+  "sample_excerpts": [
+    {
+      "elapsed_ms": 40,
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 29281,
+        "ageMs": 17,
+        "uptimeMs": 359666,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          29,
+          5,
+          1049
+        ],
+        "gyroMdps": [
+          945,
+          -3981,
+          -1478
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": 0.273095069677015,
+        "pitch": -1.5835420817045724,
+        "tilt": 0.10065021975261655,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        0.02589484305967636,
+        0.005004218137299419,
+        0.9996521469510028
+      ],
+      "tilt_latched": false,
+      "motion_blocked": false,
+      "oled": {
+        "acknowledged": true,
+        "sample": 29173,
+        "text": "LIVE IMU\nR+0 P-2\nTilt 0 deg\nSeq 29173"
+      },
+      "robot_stop": {
+        "configured": true,
+        "available": false,
+        "protocol": null,
+        "connected": false,
+        "lcdReady": false,
+        "ready": false,
+        "peer_configured": false,
+        "capabilities": {
+          "ota": false,
+          "microphone_stream": false,
+          "power": false,
+          "note": "Baseline KIT firmware needs the optional audio/SMP upgrade; check audio and SMP availability."
+        },
+        "ok": false,
+        "acknowledged": false,
+        "code": "unreachable",
+        "error": "NU87 gateway connection failed.",
+        "visual_verified": false,
+        "accepted": false
+      }
+    },
+    {
+      "elapsed_ms": 2239,
+      "fresh": false,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 29395,
+        "ageMs": 22,
+        "uptimeMs": 361089,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          28,
+          3,
+          1049
+        ],
+        "gyroMdps": [
+          962,
+          -4007,
+          -1443
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": null,
+      "reference": [
+        0.02589484305967636,
+        0.005004218137299419,
+        0.9996521469510028
+      ],
+      "tilt_latched": false,
+      "motion_blocked": true,
+      "oled": {
+        "acknowledged": true,
+        "sample": 29281,
+        "text": "LIVE IMU\nR+0 P-2\nTilt 0 deg\nSeq 29281"
+      },
+      "robot_stop": {
+        "configured": true,
+        "available": false,
+        "protocol": null,
+        "connected": false,
+        "lcdReady": false,
+        "ready": false,
+        "peer_configured": false,
+        "capabilities": {
+          "ota": false,
+          "microphone_stream": false,
+          "power": false,
+          "note": "Baseline KIT firmware needs the optional audio/SMP upgrade; check audio and SMP availability."
+        },
+        "ok": false,
+        "acknowledged": false,
+        "code": "unreachable",
+        "error": "NU87 gateway connection failed.",
+        "visual_verified": false,
+        "accepted": false
+      }
+    },
+    {
+      "elapsed_ms": 43487,
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 32868,
+        "ageMs": 12,
+        "uptimeMs": 403952,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          563,
+          -363,
+          894
+        ],
+        "gyroMdps": [
+          -74033,
+          -13632,
+          -4182
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -22.099133143662726,
+        "pitch": -30.263074972670076,
+        "tilt": 35.76583189946164,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        0.02589484305967636,
+        0.005004218137299419,
+        0.9996521469510028
+      ],
+      "tilt_latched": false,
+      "motion_blocked": false,
+      "oled": {
+        "acknowledged": true,
+        "sample": 32785,
+        "text": "LIVE IMU\nR+1 P+1\nTilt 3 deg\nSeq 32785"
+      },
+      "robot_stop": {
+        "configured": true,
+        "available": false,
+        "protocol": null,
+        "connected": false,
+        "lcdReady": false,
+        "ready": false,
+        "peer_configured": false,
+        "capabilities": {
+          "ota": false,
+          "microphone_stream": false,
+          "power": false,
+          "note": "Baseline KIT firmware needs the optional audio/SMP upgrade; check audio and SMP availability."
+        },
+        "ok": false,
+        "acknowledged": false,
+        "code": "unreachable",
+        "error": "NU87 gateway connection failed.",
+        "visual_verified": false,
+        "accepted": false
+      }
+    },
+    {
+      "elapsed_ms": 43940,
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 32893,
+        "ageMs": 14,
+        "uptimeMs": 404258,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          418,
+          -663,
+          730
+        ],
+        "gyroMdps": [
+          104002,
+          -133621,
+          -88270
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -42.246330859701466,
+        "pitch": -22.97090186359371,
+        "tilt": 46.50179059510269,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        0.02589484305967636,
+        0.005004218137299419,
+        0.9996521469510028
+      ],
+      "tilt_latched": false,
+      "motion_blocked": false,
+      "oled": {
+        "acknowledged": true,
+        "sample": 32785,
+        "text": "LIVE IMU\nR+1 P+1\nTilt 3 deg\nSeq 32785"
+      },
+      "robot_stop": {
+        "configured": true,
+        "available": false,
+        "protocol": null,
+        "connected": false,
+        "lcdReady": false,
+        "ready": false,
+        "peer_configured": false,
+        "capabilities": {
+          "ota": false,
+          "microphone_stream": false,
+          "power": false,
+          "note": "Baseline KIT firmware needs the optional audio/SMP upgrade; check audio and SMP availability."
+        },
+        "ok": false,
+        "acknowledged": false,
+        "code": "unreachable",
+        "error": "NU87 gateway connection failed.",
+        "visual_verified": false,
+        "accepted": false
+      }
+    },
+    {
+      "elapsed_ms": 44851,
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 32977,
+        "ageMs": 9,
+        "uptimeMs": 405286,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          508,
+          -458,
+          654
+        ],
+        "gyroMdps": [
+          30712,
+          25847,
+          25585
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": -35.00377800252107,
+        "pitch": -32.466715277042795,
+        "tilt": 45.38593875202274,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        0.02589484305967636,
+        0.005004218137299419,
+        0.9996521469510028
+      ],
+      "tilt_latched": true,
+      "motion_blocked": true,
+      "oled": {
+        "acknowledged": true,
+        "sample": 32893,
+        "text": "LIVE IMU\nR-42 P-23\nTilt 47 deg\nSeq 32893"
+      },
+      "robot_stop": {
+        "configured": true,
+        "available": false,
+        "protocol": null,
+        "connected": false,
+        "lcdReady": false,
+        "ready": false,
+        "peer_configured": false,
+        "capabilities": {
+          "ota": false,
+          "microphone_stream": false,
+          "power": false,
+          "note": "Baseline KIT firmware needs the optional audio/SMP upgrade; check audio and SMP availability."
+        },
+        "ok": false,
+        "acknowledged": false,
+        "code": "unreachable",
+        "error": "NU87 gateway connection failed.",
+        "visual_verified": false,
+        "accepted": false
+      }
+    },
+    {
+      "elapsed_ms": 46206,
+      "fresh": true,
+      "packet": {
+        "configured": true,
+        "source": "nu87-i2c",
+        "ready": true,
+        "fresh": true,
+        "sample": 33093,
+        "ageMs": 15,
+        "uptimeMs": 406715,
+        "whoAmI": 106,
+        "address": 106,
+        "accelMg": [
+          -1,
+          6,
+          1049
+        ],
+        "gyroMdps": [
+          883,
+          -3937,
+          -1435
+        ],
+        "errors": 0,
+        "lastError": 0
+      },
+      "orientation": {
+        "roll": 0.3277129916582661,
+        "pitch": 0.05461851759320205,
+        "tilt": 1.5389929186997358,
+        "gravity_valid": true,
+        "absolute_heading": null
+      },
+      "reference": [
+        0.02589484305967636,
+        0.005004218137299419,
+        0.9996521469510028
+      ],
+      "tilt_latched": true,
+      "motion_blocked": true,
+      "oled": {
+        "acknowledged": true,
+        "sample": 32977,
+        "text": "TILT - STOP\nR-35 P-32\nTilt 45 deg\nSeq 32977"
+      },
+      "robot_stop": {
+        "ok": true,
+        "command": "stop",
+        "state": "idle",
+        "sequence": 3,
+        "alert": false,
+        "simulated": true,
+        "accepted": true
+      }
+    }
+  ]
+}

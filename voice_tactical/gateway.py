@@ -218,6 +218,17 @@ class Gateway:
         except _GatewayError as error:
             return self._failure(error)
 
+    def imu_status(self) -> dict:
+        """Read the physical I2C endpoint; no generated or replayed measurements."""
+        try:
+            data = self._request("GET", "/v1/imu/status")
+            if data.get("source") != "nu87-i2c" or type(data.get("configured")) is not bool:
+                raise _GatewayError("invalid_response", "NU87 IMU source is invalid.")
+            return data
+        except _GatewayError as error:
+            return {"configured": False, "ready": False, "fresh": False,
+                    "source": "nu87-i2c", "error": str(error)}
+
     def _require_kit(self, *, display: bool = False) -> dict:
         state = self.status()
         if not state["ok"]:

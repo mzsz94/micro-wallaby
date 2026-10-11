@@ -1,5 +1,11 @@
 # militaryWallaby 상황별 데모
 
+**[실측 하드웨어 데모·시연 순서](LIVE-IMU.md)** — 실제 IMU 기울임 → NU87 Wi-Fi →
+기울기 경고·가상 정지 → BLE → NU40 OLED 응답을 확인한 녹화입니다.
+[실측 GIF](media/07-live-imu.gif) · [MP4](media/military-wallaby-live-imu.mp4) ·
+[측정·SQLite 이벤트](live-imu-evidence.json).
+`http://127.0.0.1:8767/hardware.html`에서 같은 장비로 직접 시연합니다.
+
 [상세 프로젝트 보고서](../military-wallaby-report.md) · [실행·보드 연결·OTA 안내](../../voice_tactical/README.md)
 
 **[실제 로컬 음성 → OLED ACK 영상](VOICE-CHECK.md)** — 합성 WAV를 실제 Whisper·llama.cpp로

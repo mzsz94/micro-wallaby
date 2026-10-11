@@ -2,6 +2,12 @@
 
 ## Military Wallaby · 밀리터리 왈라비
 
+**[실제 NU87 IMU → NU40 OLED 데모](docs/demo/LIVE-IMU.md)** — 실제 센서를 기울여
+자세 표시 → 기울기 경고·가상 정지 → 복귀·해제까지 확인했습니다.
+[실측 GIF](docs/demo/media/07-live-imu.gif) · [MP4](docs/demo/media/military-wallaby-live-imu.mp4).
+실측 화면은 `http://127.0.0.1:8767/hardware.html`입니다.
+표시 자세는 부드럽게 보간하고 원본 데이터·경고 판정은 유지합니다.
+
 **[상황별 데모 GIF·MP4 보기](docs/demo/README.md)** — 교범 조회, 상황 보고, 지시 정리,
 훈련 경고 시 정지, 탐색·모의 폭발물 발견·컨트롤 타워 보고를 60초로 보여 줍니다.
 상황에 맞춰 왈라비의 표정·관절·바퀴와 실제 모델 이동 궤적이 바뀝니다.
