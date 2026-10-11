@@ -17,11 +17,20 @@ struct http_client {
 	bool keep_alive;
 	bool responded;
 	int64_t session_deadline;
+	gateway_api_reply_fn reply;
+	void *user;
+	const uint8_t *input;
+	size_t remaining;
 };
 
 static void respond(struct http_client *client, int code, const void *body,
 		    size_t length, const char *type)
 {
+	if (client->reply) {
+		client->reply(client->user, code, body, length, type);
+		client->responded = true;
+		return;
+	}
 	/* The listener is serial. Combine small JSON replies into one write to
 	 * avoid a second Wi-Fi packet/delayed ACK for every IMU status request. */
 	static uint8_t wire[768];
@@ -43,7 +52,7 @@ static void respond(struct http_client *client, int code, const void *body,
 	client->responded = rc == 0;
 	if (rc) client->keep_alive = false;
 }
-static bool authenticated(const char *token)
+bool gateway_api_authenticated(const char *token)
 {
 	size_t n = strlen(CONFIG_GATEWAY_API_TOKEN);
 	if (n < 16 || n > 128 || strlen(token) != n) return false;
@@ -51,10 +60,20 @@ static bool authenticated(const char *token)
 	for (size_t i = 0; i < n; i++) difference |= token[i] ^ CONFIG_GATEWAY_API_TOKEN[i];
 	return difference == 0;
 }
+
+static int read_body(struct http_client *client, void *data, size_t length, int64_t deadline)
+{
+	if (!client->reply) { return http_read_before(client->fd, data, length, deadline); }
+	if (length > client->remaining) { return -EINVAL; }
+	memcpy(data, client->input, length);
+	client->input += length;
+	client->remaining -= length;
+	return 0;
+}
+
 static void route(struct http_client *client, uint32_t source_ip,
 		  struct http_request request, int64_t deadline)
 {
-	int fd = client->fd;
 	if (!strcmp(request.method, "GET") && !strcmp(request.path, "/v1/imu/status") &&
 	    !request.content_length) {
 		char result[512];
@@ -88,7 +107,7 @@ static void route(struct http_client *client, uint32_t source_ip,
 		if (request.content_length < 8 || request.content_length > sizeof(packet)) {
 			respond(client, 400, "invalid SMP size", 16, "text/plain"); return;
 		}
-		if (http_read_before(fd, packet, request.content_length, deadline)) { return; }
+		if (read_body(client, packet, request.content_length, deadline)) { return; }
 		int n = gateway_smp_transaction(packet, request.content_length, reply, sizeof(reply));
 		if (n < 0) { respond(client, n == -EBUSY ? 409 : n == -ENOTSUP ? 503 : 422, "SMP relay failed", 16, "text/plain"); return; }
 		respond(client, 200, reply, (size_t)n, "application/octet-stream"); return;
@@ -174,7 +193,7 @@ static void route(struct http_client *client, uint32_t source_ip,
 		respond(client, 400, "invalid request", 15, "text/plain"); return;
 	}
 	uint8_t body[DISPLAY_TEXT_MAX];
-	if (http_read_before(fd, body, request.content_length, deadline)) return;
+	if (read_body(client, body, request.content_length, deadline)) return;
 	int rc = -EINVAL;
 #if defined(CONFIG_GATEWAY_NU40_KIT)
 	if (!strcmp(request.path, "/v1/robot/command") && request.content_length > 0 && request.content_length <= 7 &&
@@ -254,6 +273,21 @@ static void route(struct http_client *client, uint32_t source_ip,
 	respond(client, rc ? (rc == -EBUSY ? 409 : rc == -ENOTSUP ? 405 : 422) : 202, result, n, "application/json");
 }
 
+void gateway_api_execute(const char *method, const char *path, const uint8_t *body,
+			 size_t length, gateway_api_reply_fn reply, void *user)
+{
+	struct http_request request = { .content_length = length };
+	struct http_client client = { .reply = reply, .user = user, .input = body,
+				      .remaining = length };
+	if (!reply || !method || !path || (!body && length) ||
+	    strlen(method) >= sizeof(request.method) || strlen(path) >= sizeof(request.path)) {
+		return;
+	}
+	strcpy(request.method, method);
+	strcpy(request.path, path);
+	route(&client, 0, request, k_uptime_get() + 5000);
+}
+
 static bool handle(int fd, uint32_t source_ip, bool allow_keep_alive,
 		   int64_t idle_deadline, int64_t session_deadline)
 {
@@ -276,7 +310,7 @@ static bool handle(int fd, uint32_t source_ip, bool allow_keep_alive,
 	}
 	/* Authenticate every request, even on a previously authenticated socket.
 	 * Errors always close: an unread rejected body cannot become a new header. */
-	if (!authenticated(request.bearer)) {
+	if (!gateway_api_authenticated(request.bearer)) {
 		respond(client, 401, "unauthorized", 12, "text/plain");
 		return false;
 	}

@@ -151,6 +151,15 @@ static bool fresh(const struct candidate *item, int64_t now)
 }
 
 struct advertisement { bool service, name, wrong_name; };
+static bool host_radio_ready(void)
+{
+#if defined(CONFIG_GATEWAY_USB_HOST)
+	return wifi_is_running(0) > 0;
+#else
+	return gateway_wifi_ipv4_ready();
+#endif
+}
+
 static bool parse_ad(struct bt_data *data, void *user)
 {
 	struct advertisement *found = user;
@@ -180,7 +189,7 @@ static void scanned(const bt_addr_le_t *address, int8_t rssi, uint8_t type,
 	k_spin_unlock(&lock, key);
 	/* This is an atomic readiness read; late queued scan events during a
 	 * Wi-Fi outage must not refresh peer candidates while discovery pauses. */
-	if (!gateway_wifi_ipv4_ready()) {
+	if (!host_radio_ready()) {
 		key = k_spin_lock(&lock);
 		count_report(&scan_counts.wifi_down);
 		k_spin_unlock(&lock, key);
@@ -714,7 +723,7 @@ static bool schedule_discovery(bool *scanning)
 	uint8_t requested_type = requested_scan_type, active_type = active_scan_type;
 	k_spin_unlock(&lock, key);
 	if (!can_scan) { return false; }
-	bool wifi_ready = gateway_wifi_ipv4_ready();
+	bool wifi_ready = host_radio_ready();
 	if (!wifi_ready || (*scanning && requested_type != active_type)) {
 		key = k_spin_lock(&lock);
 		/* Require new sightings after an outage or mode transition. */
@@ -732,7 +741,7 @@ static bool schedule_discovery(bool *scanning)
 			set_scan_active(false);
 		}
 	}
-	if (!gateway_wifi_ipv4_ready()) { return false; }
+	if (!host_radio_ready()) { return false; }
 	if (!*scanning) {
 		/* A mode request may have changed while the stop command waited. */
 		key = k_spin_lock(&lock);
@@ -752,7 +761,7 @@ static bool schedule_discovery(bool *scanning)
 		k_spin_unlock(&lock, key);
 		if (!*scanning) { scan_error(rc); }
 		else {
-			LOG_INF("Wi-Fi ready; %s scanning NU40-KIT-DISPLAY",
+			LOG_INF("Host radio ready; %s scanning NU40-KIT-DISPLAY",
 				requested_type == BT_LE_SCAN_TYPE_ACTIVE ? "active" : "passive");
 			gateway_radio_coex_diagnostics();
 		}
@@ -761,7 +770,7 @@ static bool schedule_discovery(bool *scanning)
 	key = k_spin_lock(&lock);
 	bool current_mode = requested_scan_type == active_scan_type;
 	k_spin_unlock(&lock, key);
-	return *scanning && current_mode && gateway_wifi_ipv4_ready();
+	return *scanning && current_mode && host_radio_ready();
 }
 
 static void initialize_controller_when_ready(void)
@@ -769,7 +778,7 @@ static void initialize_controller_when_ready(void)
 	/* Delay the single HCI initialization until association and DHCP finish.
 	 * The vendor HCI startup changes shared RF/coexistence state even without
 	 * scanning. Waiting consumes no attempt and has no DHCP deadline. */
-	if (!gateway_wifi_ipv4_ready() || !wifi_is_running(0)) { return; }
+	if (!host_radio_ready() || !wifi_is_running(0)) { return; }
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	bool initialize = start_requested && !initialization_started;
 	if (initialize) { initialization_started = true; }
@@ -812,7 +821,7 @@ static void link_thread(void *a, void *b, void *c)
 		if (!target_seen) { continue; }
 		int stop_rc = scanning ? bt_le_scan_stop() : 0;
 		if (stop_rc == 0 || stop_rc == -EALREADY) { scanning = false; set_scan_active(false); }
-		if (scanning || !gateway_wifi_ipv4_ready()) {
+		if (scanning || !host_radio_ready()) {
 			key = k_spin_lock(&lock);
 			connecting = false;
 			closed = true;
@@ -1002,8 +1011,10 @@ void gateway_get_state(struct gateway_state *snapshot)
 
 int gateway_radio_init(void)
 {
+#if !defined(CONFIG_GATEWAY_USB_HOST)
 	int rc = gateway_wifi_start();
 	if (rc != 0 && strlen(CONFIG_GATEWAY_WIFI_SSID) != 0) { return rc; }
+#endif
 	k_spinlock_key_t key = k_spin_lock(&lock); start_requested = true; k_spin_unlock(&lock, key);
 	k_sem_give(&link_event);
 	return 0;

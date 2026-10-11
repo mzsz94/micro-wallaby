@@ -2,3 +2,4 @@
 faster-whisper==1.2.1
 # 1.2.1 uses the metadata_errors PyAV argument removed by newer PyAV.
 av==16.0.1
+pyserial==3.5

@@ -442,7 +442,9 @@ def main():
     parser.add_argument("--llm-url", help="Loopback OpenAI-compatible local server base URL")
     parser.add_argument("--llm-model", help="Already-loaded local model name")
     parser.add_argument("--llm-structured", action="store_true", help="Use JSON schema with a compatible local LLM server")
-    parser.add_argument("--gateway", help="NU87 private IPv4 address[:port]")
+    transport = parser.add_mutually_exclusive_group()
+    transport.add_argument("--gateway", help="NU87 private IPv4 address[:port]")
+    transport.add_argument("--gateway-serial", help="Exact NU87 CP2102N USB serial number")
     parser.add_argument("--gateway-config", type=Path, help="Private local.conf; token is never sent to the browser")
     parser.add_argument("--auto-display", action="store_true", help="Send ASCII processing summaries to the selected NU40")
     parser.add_argument("--live-imu", action="store_true", help="Poll the real NU87 I2C endpoint and relay measured attitude to NU40")
@@ -450,11 +452,16 @@ def main():
     if not 1 <= args.port <= 65535:
         parser.error("port must be between 1 and 65535")
     try:
+        if args.gateway_serial:
+            from .usb_gateway import SerialGateway
+            gateway = SerialGateway(args.gateway_serial, config_path=args.gateway_config)
+        else:
+            gateway = Gateway(host=args.gateway, config_path=args.gateway_config)
         app = VoiceApp(
             Engine(args.data_dir, knowledge_dir=args.knowledge_dir, llm_url=args.llm_url,
                    llm_model=args.llm_model, llm_structured=args.llm_structured),
             LocalTranscriber(args.stt_model),
-            Gateway(host=args.gateway, config_path=args.gateway_config),
+            gateway,
             auto_display=args.auto_display,
             live_imu=args.live_imu,
         )
@@ -475,6 +482,8 @@ def main():
         if app.device_audio.status(touch=False)["running"]:
             app.device_audio.stop()
         server.server_close()
+        if args.gateway_serial:
+            gateway.close()
 
 
 if __name__ == "__main__":

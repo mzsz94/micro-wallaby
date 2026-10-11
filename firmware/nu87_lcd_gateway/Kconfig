@@ -2,6 +2,16 @@
 mainmenu "NU87 Wi-Fi to NU40 BLE LCD gateway"
 source "Kconfig.zephyr"
 menu "LCD gateway settings"
+config GATEWAY_USB_HOST
+	bool "Use the on-board USB-UART for HostPC data and control"
+	depends on GATEWAY_NU40_KIT
+	# The pinned LOGUART driver implements the IRQ API but omits this flag.
+	select SERIAL_SUPPORT_INTERRUPT if UART_AMEBA_LOGUART
+	select UART_INTERRUPT_DRIVEN
+	default n
+	help
+	  Use authenticated CRC-protected serial RPC instead of the HTTP listener.
+	  The shared Realtek RF initializes without AP association or DHCP.
 config GATEWAY_IMU
 	bool "Read an attached LSM6DS3/LSM6DS3TR-C over PA25/PA26"
 	select I2C
