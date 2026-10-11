@@ -29,6 +29,14 @@ Select `CONFIG_GATEWAY_NU40_KIT=y` in the private `local.conf`. Leave the peer
 address empty until the actual NU40 has been discovered and selected. The
 existing configuration helper preserves the API token when reconfiguring Wi-Fi.
 
+The default `CONFIG_GATEWAY_WIFI_CHANNEL=0` scans all channels. If the vendor
+reports AP scan failure (`-4108`) while the PC sees that AP, a known 2.4 GHz
+channel can be set in private `local.conf`, for example
+`CONFIG_GATEWAY_WIFI_CHANNEL=1`. Verify the actual AP channel first. This does
+not change the password, security mode or RF calibration; set it back to zero
+if the AP changes channel. A channel hint is a recovery attempt, not proof of
+the cause of a reset or a successful association.
+
 ```bash
 bash firmware/nu87_lcd_gateway/build.sh
 ```

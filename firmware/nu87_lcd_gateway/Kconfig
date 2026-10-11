@@ -34,6 +34,13 @@ config GATEWAY_WIFI_SSID
 config GATEWAY_WIFI_PSK
 	string "Disposable test Wi-Fi PSK"
 	default ""
+config GATEWAY_WIFI_CHANNEL
+	int "2.4 GHz AP channel (0 scans all channels)"
+	range 0 14
+	default 0
+	help
+	  Use the AP's observed channel to avoid a full-band association scan.
+	  Leave zero for networks whose channel may change.
 choice GATEWAY_WIFI_SECURITY
 	prompt "Wi-Fi security"
 	default GATEWAY_WIFI_SECURITY_OPEN

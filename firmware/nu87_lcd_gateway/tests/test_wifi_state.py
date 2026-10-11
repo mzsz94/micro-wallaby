@@ -43,8 +43,9 @@ MOCKS = r"""
 #define CONFIG_GATEWAY_WIFI_CONNECT_TIMEOUT_SECONDS 60
 #define CONFIG_GATEWAY_WIFI_SSID "test"
 #define CONFIG_GATEWAY_WIFI_PSK "testpass"
+#define CONFIG_GATEWAY_WIFI_CHANNEL 0
 #define DISCONNECT_TIMEOUT_MS 10000
-#define WIFI_CHANNEL_ANY 0
+#define WIFI_CHANNEL_ANY 255
 #define WIFI_FREQ_BAND_2_4_GHZ 1
 #define WIFI_SECURITY_TYPE_NONE 0
 #define NET_REQUEST_WIFI_CONNECT 1
@@ -123,6 +124,9 @@ static void current_lease(void) {
 static int net_mgmt(int request, struct net_if *p, void *params, size_t size) {
     (void)p; (void)params; (void)size;
     assert(request == NET_REQUEST_WIFI_CONNECT);
+    struct wifi_connect_req_params *wifi = params;
+    assert(wifi->channel == (CONFIG_GATEWAY_WIFI_CHANNEL ?
+                            CONFIG_GATEWAY_WIFI_CHANNEL : WIFI_CHANNEL_ANY));
     if (connect_behavior == 1) {
         /* The real timeout fires while the blocking vendor connect runs. */
         now = timeout_deadline_ms;
@@ -206,6 +210,13 @@ int main(void) {
 
 class WifiStateTests(unittest.TestCase):
     def test_production_state_functions(self):
+        self.check_channel(0)
+
+    def test_explicit_observed_ap_channel(self):
+        self.check_channel(1)
+        self.check_channel(14)
+
+    def check_channel(self, channel):
         compiler = shutil.which("cc")
         if compiler is None:
             self.skipTest("A host C compiler is required")
@@ -228,7 +239,9 @@ class WifiStateTests(unittest.TestCase):
             directory = Path(temporary)
             test_source = directory / "test.c"
             executable = directory / "test"
-            test_source.write_text(MOCKS + "\n".join(definitions) + TESTS)
+            mocks = MOCKS.replace("#define CONFIG_GATEWAY_WIFI_CHANNEL 0",
+                                  f"#define CONFIG_GATEWAY_WIFI_CHANNEL {channel}")
+            test_source.write_text(mocks + "\n".join(definitions) + TESTS)
             compiled = subprocess.run(
                 [compiler, "-std=c11", "-Wall", "-Wextra", "-Werror",
                  "-fsanitize=address,undefined", str(test_source), "-o", str(executable)],

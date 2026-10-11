@@ -369,7 +369,8 @@ static void connect_work_handler(struct k_work *work)
 		.ssid = (const uint8_t *)CONFIG_GATEWAY_WIFI_SSID,
 		.ssid_length = sizeof(CONFIG_GATEWAY_WIFI_SSID) - 1U,
 		.security = configured_security(),
-		.channel = WIFI_CHANNEL_ANY,
+		.channel = CONFIG_GATEWAY_WIFI_CHANNEL ? CONFIG_GATEWAY_WIFI_CHANNEL :
+			WIFI_CHANNEL_ANY,
 		.band = WIFI_FREQ_BAND_2_4_GHZ,
 	};
 	uint32_t work_generation;
