@@ -1,0 +1,587 @@
+{
+  "recorded_at": "2026-10-11T04:51:01.392Z",
+  "nu40_image": {
+    "slot": 0,
+    "version": "0.2.2",
+    "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+    "bootable": true,
+    "pending": false,
+    "confirmed": true,
+    "active": true,
+    "permanent": false
+  },
+  "signed_file_sha256": "092d891b7b40ab6ee002483e4740263c74c60300095bf3afef26c59941be9e79",
+  "ota_scope": {
+    "upload_test_explicit_confirm": true,
+    "confirmed_image_survived_software_reset": true,
+    "unconfirmed_021_reverted_to_020": true,
+    "power_loss_during_update_tested": false
+  },
+  "before_confirmation": {
+    "checked_at": 1791694155.0802045,
+    "images": {
+      "images": [
+        {
+          "slot": 0,
+          "version": "0.2.2",
+          "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+          "bootable": true,
+          "pending": false,
+          "confirmed": false,
+          "active": true,
+          "permanent": false
+        },
+        {
+          "slot": 1,
+          "version": "0.2.0",
+          "hash": "543863dfe6a4f89f3e0895ca75fa45de3f95511ee2111eb630260104acfa41e8",
+          "bootable": true,
+          "pending": false,
+          "confirmed": true,
+          "active": false,
+          "permanent": false
+        }
+      ],
+      "splitStatus": 0
+    },
+    "physical_imu_sample": 204026,
+    "physical_imu_errors": 0,
+    "oled_driver_ack": true,
+    "alarm_clear_ack": true,
+    "audio_transport": {
+      "received": 3,
+      "dropped": 0,
+      "frames_decoded": 3,
+      "sequences": [
+        0,
+        1,
+        2
+      ],
+      "max_abs_pcm": 0,
+      "scope": "Armed transport/keepalive only; no physical BTN2/BTN3 or acoustic capture claim."
+    },
+    "confirmation_sent": false
+  },
+  "after_confirmed_software_reset": {
+    "checked_at": 1791694194.4556553,
+    "images": {
+      "images": [
+        {
+          "slot": 0,
+          "version": "0.2.2",
+          "hash": "9f46926b733401b928594d3b41eec0938f35078378cf80af77864a73e1024568",
+          "bootable": true,
+          "pending": false,
+          "confirmed": true,
+          "active": true,
+          "permanent": false
+        },
+        {
+          "slot": 1,
+          "version": "0.2.0",
+          "hash": "543863dfe6a4f89f3e0895ca75fa45de3f95511ee2111eb630260104acfa41e8",
+          "bootable": true,
+          "pending": false,
+          "confirmed": false,
+          "active": false,
+          "permanent": false
+        }
+      ],
+      "splitStatus": 0
+    },
+    "physical_imu_sample": 207231,
+    "physical_imu_errors": 0,
+    "oled_driver_ack": true,
+    "alarm_clear_ack": true,
+    "audio_transport": {
+      "received": 3,
+      "dropped": 0,
+      "frames_decoded": 3,
+      "sequences": [
+        0,
+        1,
+        2
+      ],
+      "max_abs_pcm": 0,
+      "scope": "Armed transport/keepalive only; no physical BTN2/BTN3 or acoustic capture claim."
+    },
+    "confirmation_sent": false
+  },
+  "browser_scenario": {
+    "passed": true,
+    "checked_at": "2026-10-11T04:51:01.392Z",
+    "checkpoints": [
+      {
+        "kind": "reference",
+        "at": "2026-10-11T04:50:43.880Z",
+        "fresh": true,
+        "packet": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 211676,
+          "ageMs": 14,
+          "uptimeMs": 2587663,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            -7,
+            16,
+            1049
+          ],
+          "gyroMdps": [
+            1050,
+            -4217,
+            -1478
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.8738430808679333,
+          "pitch": 0.38228585399221654,
+          "tilt": 0.9537991783965601,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          -0.0069892628491827515,
+          0.015090453878917305,
+          0.9998617046404734
+        ],
+        "oled": {
+          "ok": true,
+          "configured": true,
+          "available": true,
+          "protocol": "nu40-kit-display",
+          "acknowledged": true,
+          "verification": "gateway-matching-ack",
+          "visual_verified": false,
+          "columns": 21,
+          "rows": 4,
+          "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+          "text": "LIVE IMU\nR+1 P+0\nTilt 1 deg\nSeq 211601",
+          "sample": 211601,
+          "at": 1791694243.2986028,
+          "scene": null
+        },
+        "motion_blocked": false
+      },
+      {
+        "kind": "face",
+        "at": "2026-10-11T04:50:44.835Z",
+        "fresh": true,
+        "packet": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 211752,
+          "ageMs": 14,
+          "uptimeMs": 2588597,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            -7,
+            17,
+            1048
+          ],
+          "gyroMdps": [
+            1041,
+            -4252,
+            -1478
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.9293347635723599,
+          "pitch": 0.38264478778600874,
+          "tilt": 0.06706895060678837,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          -0.0069892628491827515,
+          0.015090453878917305,
+          0.9998617046404734
+        ],
+        "oled": {
+          "ok": true,
+          "configured": true,
+          "available": true,
+          "protocol": "nu40-kit-display",
+          "acknowledged": true,
+          "verification": "gateway-matching-ack",
+          "visual_verified": false,
+          "columns": 21,
+          "rows": 4,
+          "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+          "text": "@WG1 F L\n1 0 0\n211692",
+          "sample": 211692,
+          "at": 1791694244.652672,
+          "scene": {
+            "protocol": "WG1",
+            "view": "face",
+            "state": "L",
+            "roll": 1,
+            "pitch": 0,
+            "tilt": 0,
+            "sample": 211692,
+            "source": "nu87-i2c",
+            "attitude_valid": true,
+            "motion": null
+          }
+        },
+        "motion_blocked": false
+      },
+      {
+        "kind": "horizon",
+        "at": "2026-10-11T04:50:47.568Z",
+        "fresh": true,
+        "packet": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 211958,
+          "ageMs": 18,
+          "uptimeMs": 2591137,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            -12,
+            16,
+            1049
+          ],
+          "gyroMdps": [
+            1172,
+            -4121,
+            -1522
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.8738430808679333,
+          "pitch": 0.6553283251824373,
+          "tilt": 0.2550346920067293,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          -0.0069892628491827515,
+          0.015090453878917305,
+          0.9998617046404734
+        ],
+        "oled": {
+          "ok": true,
+          "configured": true,
+          "available": true,
+          "protocol": "nu40-kit-display",
+          "acknowledged": true,
+          "verification": "gateway-matching-ack",
+          "visual_verified": false,
+          "columns": 21,
+          "rows": 4,
+          "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+          "text": "@WG1 H L\n1 0 0\n211943",
+          "sample": 211943,
+          "at": 1791694247.5310771,
+          "scene": {
+            "protocol": "WG1",
+            "view": "horizon",
+            "state": "L",
+            "roll": 1,
+            "pitch": 0,
+            "tilt": 0,
+            "sample": 211943,
+            "source": "nu87-i2c",
+            "attitude_valid": true,
+            "motion": null
+          }
+        },
+        "motion_blocked": false
+      },
+      {
+        "kind": "text",
+        "at": "2026-10-11T04:50:50.442Z",
+        "fresh": true,
+        "packet": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 212207,
+          "ageMs": 17,
+          "uptimeMs": 2594228,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            -6,
+            13,
+            1044
+          ],
+          "gyroMdps": [
+            1076,
+            -4173,
+            -1478
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.713416321778249,
+          "pitch": 0.3292569389347849,
+          "tilt": 0.1671747464639618,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          -0.0069892628491827515,
+          0.015090453878917305,
+          0.9998617046404734
+        ],
+        "oled": {
+          "ok": true,
+          "configured": true,
+          "available": true,
+          "protocol": "nu40-kit-display",
+          "acknowledged": true,
+          "verification": "gateway-matching-ack",
+          "visual_verified": false,
+          "columns": 21,
+          "rows": 4,
+          "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+          "text": "LIVE IMU\nR+1 P+0\nTilt 0 deg\nSeq 212148",
+          "sample": 212148,
+          "at": 1791694250.2824068,
+          "scene": null
+        },
+        "motion_blocked": false
+      },
+      {
+        "kind": "final",
+        "at": "2026-10-11T04:51:01.390Z",
+        "fresh": true,
+        "packet": {
+          "configured": true,
+          "source": "nu87-i2c",
+          "ready": true,
+          "fresh": true,
+          "sample": 213059,
+          "ageMs": 10,
+          "uptimeMs": 2604757,
+          "whoAmI": 106,
+          "address": 106,
+          "accelMg": [
+            -9,
+            15,
+            1049
+          ],
+          "gyroMdps": [
+            1050,
+            -4200,
+            -1531
+          ],
+          "errors": 0,
+          "lastError": 0
+        },
+        "orientation": {
+          "roll": 0.8192355798656114,
+          "pitch": 0.49151254208839446,
+          "tilt": 0.1017609522027595,
+          "gravity_valid": true,
+          "absolute_heading": null
+        },
+        "reference": [
+          -0.0069892628491827515,
+          0.015090453878917305,
+          0.9998617046404734
+        ],
+        "oled": {
+          "ok": true,
+          "configured": true,
+          "available": true,
+          "protocol": "nu40-kit-display",
+          "acknowledged": true,
+          "verification": "gateway-matching-ack",
+          "visual_verified": false,
+          "columns": 21,
+          "rows": 4,
+          "message": "Gateway confirmed the matching OLED-driver ACK; inspect the screen separately.",
+          "text": "@WG1 F L\n1 0 0\n213059",
+          "sample": 213059,
+          "at": 1791694261.3443918,
+          "scene": {
+            "protocol": "WG1",
+            "view": "face",
+            "state": "L",
+            "roll": 1,
+            "pitch": 0,
+            "tilt": 0,
+            "sample": 213059,
+            "source": "nu87-i2c",
+            "attitude_valid": true,
+            "motion": null
+          }
+        },
+        "motion_blocked": false
+      }
+    ],
+    "virtual_patrol": {
+      "start_pose": "X 1.00 m   Y 1.20 m   θ 0.0°",
+      "end_pose": "X 1.67 m   Y 1.20 m   θ 5.0°",
+      "changed": true
+    },
+    "manual_drive": {
+      "start_pose": "X 1.68 m   Y 1.20 m   θ 26.1°",
+      "end_pose": "X 1.74 m   Y 1.23 m   θ 26.1°",
+      "changed": true
+    },
+    "space_stop_checked": true,
+    "browser_errors": [],
+    "generated_sensor_values": false,
+    "physical_oled_pixels_verified_by_script": false,
+    "scope": "Actual I2C input and matching BLE OLED-driver ACKs; driving is a virtual model."
+  },
+  "media": {
+    "gif": "media/09-ota-oled-022.gif",
+    "mp4": "media/military-wallaby-ota-022.mp4",
+    "mp4_duration_s": 24.92,
+    "gif_sha256": "134c8a3d656934eafca06b7e2e69622c5ef2634124a47ad46891e3c1dde43525",
+    "mp4_sha256": "6d7e78803fd7339a616cc90443472c75e5ff2a9617bf04af8dda5cb4ff41c7a5"
+  },
+  "limitations": [
+    "OLED preview is host-rendered; the recording is not a camera view.",
+    "The actual IMU remained stationary during this UI check; driving is virtual.",
+    "Silent armed frames verify audio transport, not physical microphone capture or speech recognition.",
+    "BLE timeout 0x08 remains observed; continuous wireless stability is not established.",
+    "The later timing capture overlapped Windows Modern Standby and a Wi-Fi network change; it is excluded from continuous stability results."
+  ],
+  "nu87_channel_recovery": {
+    "source_commit": "c3ccab9",
+    "configured_first_channel": 1,
+    "observed_ap_channel_after_restart": 6,
+    "retry_channel": 255,
+    "retry_channel_meaning": "all 2.4 GHz channels",
+    "wifi_association_succeeded": true,
+    "dhcp_ready_uptime_ms": 38305,
+    "physical_imu_and_oled_ack_restored": true,
+    "private_credentials_published": false
+  },
+  "after_standby_live_measurement": {
+    "summary": {
+      "started_at": 1791699660.743914,
+      "seconds": 121.4895250829868,
+      "wall_seconds": 121.4895281791687,
+      "max_clock_difference_s": 0.009207608352880925,
+      "snapshots": 600,
+      "stale_snapshots": 0,
+      "input_updates": 423,
+      "input_gap_max_s": 1.4375232980237342,
+      "input_gap_p95_s": 0.6000512400059961,
+      "oled_acks": 94,
+      "oled_gap_max_s": 4.1998635600320995,
+      "oled_gap_p95_s": 1.6000328099471517,
+      "oled_error_snapshots": 16,
+      "capture_errors": 0,
+      "sensor_errors_max": 0,
+      "uptime_regressions": 0,
+      "boundary": "Actual NU87 I2C and matching OLED driver ACKs; physical pixels unobserved; 200ms quantization; two scan probes plus error-triggered probes."
+    },
+    "diagnostics": [
+      {
+        "elapsed_s": 0.5352574230055325,
+        "label": "start",
+        "link": {
+          "connections": 1,
+          "disconnects": 0,
+          "commands": 52,
+          "failures": 0,
+          "lastFailure": 0,
+          "failureAtMs": 0,
+          "attError": 0,
+          "enqueueError": 0,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": -1,
+          "disconnectAtMs": 0
+        }
+      },
+      {
+        "elapsed_s": 73.23732828599168,
+        "label": "oled_error",
+        "link": {
+          "connections": 1,
+          "disconnects": 1,
+          "commands": 108,
+          "failures": 0,
+          "lastFailure": 0,
+          "failureAtMs": 0,
+          "attError": 0,
+          "enqueueError": 0,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": 8,
+          "disconnectAtMs": 312033
+        }
+      },
+      {
+        "elapsed_s": 121.48882658197545,
+        "label": "end",
+        "link": {
+          "connections": 2,
+          "disconnects": 1,
+          "commands": 146,
+          "failures": 0,
+          "lastFailure": 0,
+          "failureAtMs": 0,
+          "attError": 0,
+          "enqueueError": 0,
+          "fragment": 0,
+          "ackReceived": false,
+          "disconnectReason": 8,
+          "disconnectAtMs": 312033
+        }
+      }
+    ],
+    "interpretation": "No stale IMU snapshots, one actual BLE supervision timeout and automatic recovery. This does not establish continuous BLE stability."
+  },
+  "idle_http_comparison": {
+    "scope": "Pause HostPC HTTP polling/output; do not alter BLE connection, firmware, power or thresholds.",
+    "before": {
+      "connections": 4,
+      "disconnects": 3,
+      "commands": 268,
+      "failures": 1,
+      "lastFailure": -5,
+      "failureAtMs": 493790,
+      "attError": 14,
+      "enqueueError": 0,
+      "fragment": 0,
+      "ackReceived": false,
+      "disconnectReason": 8,
+      "disconnectAtMs": 493790
+    },
+    "after": {
+      "connections": 6,
+      "disconnects": 5,
+      "commands": 268,
+      "failures": 1,
+      "lastFailure": -5,
+      "failureAtMs": 493790,
+      "attError": 14,
+      "enqueueError": 0,
+      "fragment": 0,
+      "ackReceived": false,
+      "disconnectReason": 8,
+      "disconnectAtMs": 580132
+    },
+    "quiet_monotonic_seconds": 120.00273882196052,
+    "quiet_wall_seconds": 120.0027961730957,
+    "disconnect_delta": 2,
+    "interpretation": "Two BLE timeouts also occurred without HostPC input polling/output. This does not identify the RF/controller cause."
+  }
+}

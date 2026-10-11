@@ -6,6 +6,11 @@
 [측정·SQLite 이벤트](live-imu-evidence.json).
 `http://127.0.0.1:8767/hardware.html`에서 같은 장비로 직접 시연합니다.
 
+**[OTA 0.2.2 이후 OLED·가상 주행 시연](OLED-GRAPHICS.md)** — NU40 BLE 업데이트·확정·
+소프트웨어 리셋 뒤 실제 IMU와 OLED ACK로 화면 전환 및 주행 조작을 검사했습니다.
+[최신 GIF](media/09-ota-oled-022.gif) · [MP4](media/military-wallaby-ota-022.mp4) ·
+[검증 기록](ota-oled-022-evidence.json). OLED는 화면 미리보기이며 주행은 가상 모델입니다.
+
 [상세 프로젝트 보고서](../military-wallaby-report.md) · [실행·보드 연결·OTA 안내](../../voice_tactical/README.md)
 
 **[실제 로컬 음성 → OLED ACK 영상](VOICE-CHECK.md)** — 합성 WAV를 실제 Whisper·llama.cpp로
@@ -43,7 +48,8 @@
 - **전송 경로:** HostPC 업데이트 도구 → 로컬 Wi-Fi HTTP → NU87 → 인증된 BLE SMP → NU40 MCUboot.
 - **첫 설치:** NU40에 호환 MCUboot와 서명 앱을 USB로 설치한 뒤, 이후 펌웨어를 BLE OTA로 갱신.
 - **업데이트 절차:** 서명 이미지 업로드 → 시험 부팅 → 기능 확인 → 명시적 확정. 미확정 이미지에는 MCUboot 복귀 절차 적용.
-- **현재 범위:** NU40 OTA 중계 경로 구현·빌드 완료. 실제 보드의 OTA·전원 차단 복구 검증은 별도 수행 대상이며, NU87 자체 BLE OTA는 현재 구현 범위에 포함되지 않음.
+- **실물 확인:** NU40 `0.2.2`를 BLE OTA로 업로드·시험 부팅·명시적 확정했으며, 소프트웨어 리셋 뒤에도 같은 확정 이미지와 OLED·경보 ACK를 확인. 미확정 `0.2.1`에서 `0.2.0`으로 복귀도 확인.
+- **남은 범위:** 전송 중 전원 차단 복구는 미시험. NU87 자체 BLE OTA는 현재 구현 범위에 포함되지 않음.
 
 ## 통합 시연 영상
 
