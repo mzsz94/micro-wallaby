@@ -366,9 +366,13 @@ class Gateway:
                 raise _GatewayError("invalid_response", "NU87 returned invalid microphone status.")
             return {"ok": True, "configured": True,
                     **{key: data[key] for key in (*numbers, "available", "running", "error", "sampleRate", "codec")},
-                    "capture_confirmed": data["running"] and data["received"] > 0}
+                    # BTN2/BTN3 firmware sends silent frames while armed.
+                    # The unchanged protocol cannot report local PDM state.
+                    "transport_confirmed": data["running"] and data["received"] > 0,
+                    "capture_confirmed": False}
         except _GatewayError as error:
-            return {**self._failure(error), "running": False, "capture_confirmed": False}
+            return {**self._failure(error), "running": False,
+                    "transport_confirmed": False, "capture_confirmed": False}
 
     def _audio_control(self, path: str, body: bytes) -> dict:
         try:
@@ -377,7 +381,8 @@ class Gateway:
             if type(data.get("error")) is not int or data["error"] != 0:
                 raise _GatewayError("invalid_response", "NU87 did not accept the microphone control request.")
             return {"ok": True, "accepted": True, "capture_confirmed": False,
-                    "message": "Control accepted; audio frames confirm microphone capture."}
+                    "message": ("Control accepted; BTN2 records and BTN3 sends. "
+                                "Frames can be silent keepalives.")}
         except _GatewayError as error:
             return {**self._failure(error), "accepted": False, "capture_confirmed": False}
 

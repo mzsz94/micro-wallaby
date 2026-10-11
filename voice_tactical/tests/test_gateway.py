@@ -417,7 +417,7 @@ class GatewayTests(unittest.TestCase):
                 self.assertTrue(all(len(line) <= 21 for line in text.splitlines()))
         self.assertIn("SIM: GREET", summarize_result({"kind": "motion", "motion": "greet"}))
 
-    def test_audio_controls_and_capture_evidence(self):
+    def test_audio_controls_confirm_transport_without_claiming_microphone_capture(self):
         status = {"available": True, "running": True, "session": 17, "received": 0,
                   "dropped": 0, "queued": 0, "error": 0, "sampleRate": 16000, "codec": "ima-adpcm"}
         transport = self.transport(Response(202, {"error": 0}), Response(value=status),
@@ -425,8 +425,12 @@ class GatewayTests(unittest.TestCase):
                                    Response(202, {"error": 0}))
         gateway = self.gateway()
         self.assertTrue(gateway.audio_start(17)["accepted"])
-        self.assertFalse(gateway.audio_status()["capture_confirmed"])
-        self.assertTrue(gateway.audio_status()["capture_confirmed"])
+        empty = gateway.audio_status()
+        self.assertFalse(empty["capture_confirmed"])
+        self.assertFalse(empty["transport_confirmed"])
+        received = gateway.audio_status()
+        self.assertFalse(received["capture_confirmed"])
+        self.assertTrue(received["transport_confirmed"])
         self.assertTrue(gateway.audio_stop()["accepted"])
         self.assertEqual(transport.calls[0][4:6], ("/v1/audio/start", b"17"))
         self.assertEqual(transport.calls[-1][4:6], ("/v1/audio/stop", b"stop"))
